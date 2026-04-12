@@ -4,6 +4,7 @@ import { Navigate, useRoutes } from 'react-router-dom';
 
 const Login = lazy(() => import('@/pages/auths/Login'));
 const Register = lazy(() => import('@/pages/auths/Register'));
+const Manager = lazy(() => import('@/pages/manage/Manager'));
 const MainLayout = lazy(() => import('@/layouts/MainLayout'));
 const ProtectedRoute = lazy(() => import('@/components/Route/ProtectedRoute'));
 
@@ -24,6 +25,10 @@ export default function useRouteElements() {
           <Register></Register>
         </AuthLayout>
       )
+    },
+    {
+      path: '/manage',
+      element: <Manager />
     },
     {
       path: '/',

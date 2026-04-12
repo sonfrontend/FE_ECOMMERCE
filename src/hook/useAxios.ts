@@ -24,7 +24,7 @@ const useAxios = (url, method = 'get', body = null) => {
     };
 
     fetchData();
-  }, [url, method, JSON.stringify(body)]); // Reload nếu url hoặc body thay đổi
+  }, [url, method, body]); // Reload nếu url hoặc body thay đổi
 
   return { data, loading, error };
 };

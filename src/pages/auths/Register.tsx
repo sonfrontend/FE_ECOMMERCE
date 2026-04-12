@@ -1,7 +1,5 @@
-import { Button, Flex, Form, Input, Tooltip } from 'antd';
-import trello from '@/assets/images/trello.svg';
+import { Button, Form, Input } from 'antd';
 import { Link } from 'react-router-dom';
-import { InfoCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
@@ -18,10 +16,10 @@ const Login = () => {
       const data = await response.json();
 
       if (response.ok) {
-        alert('Đăng ký thành công!', data);
+        alert('Đăng ký thành công!');
         navigate('/login');
       } else {
-        alert('Đăng ký thất bại!', data);
+        alert(data.message);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -45,54 +43,27 @@ const Login = () => {
       variant='underlined'
     >
       <div className='flex justify-center p-2 gap-2 items-center'>
-        <img src={trello} alt='' />
         <h2 className='font-bold text-2xl'>Trello</h2>
       </div>
       <Form.Item
-        label={
-          <Flex gap={5}>
-            <span>Tên đăng nhặp</span>
-            <Tooltip title='Tên phải ít nhất 6 ký tự'>
-              <InfoCircleOutlined style={{ color: 'rgba(0,0,0,.45)' }} />
-            </Tooltip>
-          </Flex>
-        }
+        label={<span>Tên đăng nhặp</span>}
         name='userName'
         hasFeedback
-        rules={[
-          { required: true, type: 'string', message: '' },
-          { min: 6, type: 'string', message: '' }
-        ]}
+        rules={[{ required: true, type: 'string', message: 'Vui lòng nhập tên đăng nhập' }]}
         className='mb-2!'
       >
         <Input className='w-full' style={{ width: '100%' }} />
       </Form.Item>
 
       <Form.Item
-        label={
-          <Flex gap={5}>
-            <span>Email</span>
-            <Tooltip
-              title={
-                <Flex orientation='vertical'>
-                  <span>Email phải đúng định dạng.</span>
-                  <span>
-                    Ví dụ: <u>abc@gmail.com</u>
-                  </span>
-                </Flex>
-              }
-            >
-              <InfoCircleOutlined style={{ color: 'rgba(0,0,0,.45)' }} />
-            </Tooltip>
-          </Flex>
-        }
+        label={<span>Email</span>}
         name='email'
         hasFeedback
         rules={[
-          { required: true, message: '' },
+          { required: true, message: 'Vui lòng nhập email' },
           {
             type: 'email',
-            message: ''
+            message: 'Email không đúng định dạng Vd:abc@gmail.com'
           }
         ]}
         className='mb-2!'
@@ -101,43 +72,22 @@ const Login = () => {
       </Form.Item>
 
       <Form.Item
-        label={
-          <Flex gap={5}>
-            <span>Mật khẩu</span>
-            <Tooltip
-              title={
-                <Flex orientation='vertical'>
-                  <span>Yêu cầu mật khẩu:</span>
-                  <Flex orientation='vertical'>
-                    <span>+ Chữ hoa</span>
-                    <span>+ Chữ thường</span>
-                    <span>+ Chữ số</span>
-                    <span>
-                      Ví dụ: <u>abcABC123</u>
-                    </span>
-                  </Flex>
-                </Flex>
-              }
-            >
-              <InfoCircleOutlined style={{ color: 'rgba(0,0,0,.45)' }} />
-            </Tooltip>
-          </Flex>
-        }
+        label={<span>Mật khẩu</span>}
         name='password'
         hasFeedback
         rules={[
-          { required: true, message: '' },
+          { required: true, message: 'Vui lòng nhập mật khẩu' },
           {
             pattern: /^(?=.*[A-Z]).+$/,
-            message: ''
+            message: 'Mật khẩu phải có ít nhất 1 chữ hoa'
           },
           {
             pattern: /^(?=.*[a-z]).+$/,
-            message: ''
+            message: 'Mật khẩu phải có ít nhất 1 chữ thường'
           },
           {
             pattern: /^(?=.*\d).+$/,
-            message: ''
+            message: 'Mật khẩu phải có ít nhất 1 số'
           }
         ]}
         className='mb-4!'
@@ -147,25 +97,19 @@ const Login = () => {
 
       <Form.Item
         name='confirm_password'
-        label={
-          <Flex gap={5}>
-            <span>Nhập lại mật khẩu</span>
-            <Tooltip title='Mật khẩu không khớp'>
-              <InfoCircleOutlined style={{ color: 'rgba(0,0,0,.45)' }} />
-            </Tooltip>
-          </Flex>
-        }
+        label={<span>Nhập lại mật khẩu</span>}
         hasFeedback
         rules={[
           {
-            required: true
+            required: true,
+            message: 'Vui lòng nhập lại mật khẩu'
           },
           ({ getFieldValue }) => ({
             validator(_, value) {
               if (!value || getFieldValue('password') === value) {
                 return Promise.resolve();
               }
-              return Promise.reject('');
+              return Promise.reject('Nhập khẩu không khớp');
             }
           })
         ]}

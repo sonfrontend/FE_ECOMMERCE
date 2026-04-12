@@ -4,9 +4,11 @@ import {
   MenuUnfoldOutlined,
   UploadOutlined,
   UserOutlined,
-  VideoCameraOutlined
+  VideoCameraOutlined,
+  LogoutOutlined
 } from '@ant-design/icons';
-import { Button, Flex, Layout, Menu } from 'antd';
+import { Avatar, Button, Dropdown, Flex, Layout, Menu } from 'antd';
+import type { MenuProps } from 'antd';
 import Trello from '@/assets/images/trello.svg';
 import Header from '@/components/Header/Header';
 
@@ -14,6 +16,30 @@ const { Sider, Content } = Layout;
 
 const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
+
+  const profileItems: MenuProps['items'] = [
+    {
+      key: 'manage',
+      label: 'Quản lý',
+      icon: <UserOutlined />,
+      danger: true,
+      onClick: () => {
+        window.location.href = '/manage';
+      }
+    },
+    {
+      key: 'logout',
+      label: 'Đăng xuất',
+      icon: <LogoutOutlined />,
+      danger: true,
+      onClick: () => {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('userInfo');
+        window.location.href = '/login';
+      }
+    }
+  ];
 
   return (
     <div>
@@ -59,6 +85,12 @@ const MainLayout = () => {
                   height: 64
                 }}
               />
+              <Dropdown menu={{ items: profileItems }} trigger={['click']} placement='bottomCenter'>
+                <div className='flex items-center gap-2 cursor-pointer pr-4 hover:opacity-80 transition-opacity'>
+                  <Avatar icon={<UserOutlined />} className='bg-[#1677ff]' />
+                  <span className='font-medium'>Hồ sơ</span>
+                </div>
+              </Dropdown>
             </Header>
           </div>
           <Flex className='h-[calc(100vh-64px)] flex flex-col'>
