@@ -4,7 +4,7 @@ import { Navigate, useRoutes } from 'react-router-dom';
 
 const Login = lazy(() => import('@/pages/auths/Login'));
 const Register = lazy(() => import('@/pages/auths/Register'));
-const Manager = lazy(() => import('@/pages/manage/Manager'));
+const Manager = lazy(() => import('@/pages/manage/Manage'));
 const MainLayout = lazy(() => import('@/layouts/MainLayout'));
 const ProtectedRoute = lazy(() => import('@/components/Route/ProtectedRoute'));
 
