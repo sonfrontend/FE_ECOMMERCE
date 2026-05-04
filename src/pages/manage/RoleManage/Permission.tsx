@@ -1,6 +1,6 @@
+import { CloseOutlined, DeleteOutlined, EditOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
+import { Button, Form, Input, Popconfirm, Space, Table, Tag, Typography } from 'antd';
 import React, { useState } from 'react';
-import { Form, Input, Button, Table, Space, Popconfirm, Tag, Typography } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SaveOutlined, CloseOutlined } from '@ant-design/icons';
 import { IPermission } from './types';
 
 const { Title } = Typography;
