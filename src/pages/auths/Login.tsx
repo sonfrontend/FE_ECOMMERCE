@@ -2,6 +2,8 @@ import { Button, Flex, Form, Input } from 'antd';
 import { Link } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useState } from 'react';
+import http from '@/apis/http';
+import { toast } from 'react-toastify';
 
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -9,32 +11,32 @@ const Login = () => {
   const onFinish = async (values) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/api/Auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(values)
-      });
-      const data = await response.json();
-      if (response.ok) {
+      const response = await http.post('/api/Auth/login', values);
+      const data = response.data;
+      if (response.status === 200) {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
         localStorage.setItem('userInfo', JSON.stringify(data.userInfo));
         window.location.href = '/';
       } else {
-        alert('Lỗi từ C#: ' + data.message);
+        toast.error(data.message);
       }
     } catch (error) {
-      console.error('Lỗi:', error);
+      if (error.response && error.response.status === 401) {
+        // Lấy câu "Tên đăng nhập hoặc mật khẩu không đúng!"
+        const messageFromBackend = error.response.data.message;
+        toast.error(messageFromBackend);
+      } else {
+        toast.error('Đã có lỗi xảy ra. Vui lòng thử lại!');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const onFinishFailed = (errorInfo) => {
-    console.log('Failed:', errorInfo);
-  };
+  // const onFinishFailed = (errorInfo) => {
+  //   console.log('Failed:', errorInfo);
+  // };
 
   const handleGoogleSuccess = async (credentialResponse) => {
     // 1. Rút cái ID Token từ Google trả về
@@ -74,7 +76,7 @@ const Login = () => {
       style={{ maxWidth: 600 }}
       initialValues={{ remember: true }}
       onFinish={onFinish}
-      onFinishFailed={onFinishFailed}
+      // onFinishFailed={onFinishFailed}
       autoComplete='off'
       layout='vertical'
       variant='underlined'

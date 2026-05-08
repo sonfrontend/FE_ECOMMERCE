@@ -10,9 +10,8 @@ export interface IUserRole {
 }
 
 export interface IRole {
-  id: string;
-  name: string;
-  description: string;
+  roleId: string;
+  roleName: string;
 }
 
 export interface IPermission {

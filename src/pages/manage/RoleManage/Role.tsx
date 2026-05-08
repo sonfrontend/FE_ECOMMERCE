@@ -1,70 +1,177 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Form, Input, Button, Table, Space, Popconfirm, Tag, Typography } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SaveOutlined, CloseOutlined } from '@ant-design/icons';
 import { IRole } from './types';
+import http from '@/apis/http';
+import { toast } from 'react-toastify';
+import { v4 as uuid } from 'uuid';
 
 const { Title } = Typography;
 
-interface RoleTabProps {
-  roles: IRole[];
-  setRoles: React.Dispatch<React.SetStateAction<IRole[]>>;
-}
-
-export default function RoleTab({ roles, setRoles }: RoleTabProps) {
+export default function RoleTab() {
+  const [roles, setRoles] = useState<IRole[]>([]);
   const [form] = Form.useForm();
   const [editingKey, setEditingKey] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [action, setAction] = useState<'add' | 'edit'>('add');
 
-  const isEditing = (record: IRole) => record.id === editingKey;
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const res = await http.get('/api/Role');
+        if (res.status === 200) {
+          const mappedRoles = res.data?.data?.map((item) => ({
+            roleId: item.roleId,
+            roleName: item.roleName
+          }));
 
-  const edit = (record: IRole) => {
-    form.setFieldsValue({ name: '', description: '', ...record });
-    setEditingKey(record.id);
+          setRoles(mappedRoles);
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchRoles();
+  }, []);
+
+  const isEditing = (record: IRole) => record.roleId === editingKey;
+
+  const handleEdit = (record: IRole) => {
+    setAction('edit');
+    form.setFieldsValue({ name: '', ...record });
+    setEditingKey(record.roleId);
   };
 
-  const cancel = (id: string) => {
+  const handleCancel = (id: string) => {
     setEditingKey('');
     if (id.startsWith('temp_')) {
-      setRoles(roles.filter((r) => r.id !== id));
+      setRoles(roles.filter((r) => r.roleId !== id));
     }
   };
 
-  const save = async (key: string) => {
+  const handleSave = async (key: string) => {
     try {
       const row = await form.validateFields();
+
       const newData = [...roles];
-      const index = newData.findIndex((item) => key === item.id);
+      const index = newData.findIndex((item) => key === item.roleId);
 
       if (index > -1) {
+        // 1. Chuẩn bị dữ liệu
         const item = newData[index];
-        const finalId = key.startsWith('temp_') ? `role_${Date.now()}` : key;
-        newData.splice(index, 1, { ...item, ...row, id: finalId });
-        setRoles(newData);
-        setEditingKey('');
+        const payload = { ...item, ...row };
+
+        // Quan trọng: Xóa ID tạm nếu là Thêm mới để C# tự sinh Guid chuẩn
+        if (action === 'add' && key.startsWith('temp_')) {
+          delete payload.roleId;
+        }
+
+        // 2. Khai báo biến res với kiểu any (hoặc kiểu AxiosResponse) để fix lỗi gạch chân
+        let res;
+
+        // 3. Rẽ nhánh gọi API tương ứng
+        if (action === 'add') {
+          res = await handleApiAdd(payload);
+        } else if (action === 'edit') {
+          res = await handleApiEdit(payload);
+        }
+
+        // 4. Xử lý kết quả chung
+        if (res && res.status === 200) {
+          const dataFromDB = {
+            roleId: res.data.role.roleId,
+            roleName: res.data.role.roleName
+          };
+
+          newData.splice(index, 1, dataFromDB);
+          setRoles(newData);
+          setEditingKey('');
+        } else {
+          console.error('Lỗi từ server:', res);
+        }
       }
     } catch (errInfo) {
       console.log('Validate Failed:', errInfo);
     }
   };
 
-  const handleDelete = (key: string) => {
-    setRoles(roles.filter((item) => item.id !== key));
+  const handleDelete = async (role: IRole) => {
+    try {
+      const res = await handleApiDelete(role.roleId);
+      if (res.status === 200) {
+        toast.success(`${res.data.message}`);
+        setRoles(roles.filter((item) => item.roleId !== role.roleId));
+      }
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   const handleAdd = () => {
-    const newId = `temp_${Date.now()}`;
-    const newRecord = { id: newId, name: '', description: '' };
-    setRoles([newRecord, ...roles]);
-    form.setFieldsValue({ name: '', description: '' });
-    setEditingKey(newId);
+    setAction('add');
+    const newId = uuid();
+    const newRecord: IRole = { roleId: newId, roleName: '' };
+    if (!editingKey) {
+      setRoles([newRecord, ...roles]);
+      form.setFieldsValue({ name: '' });
+      setEditingKey(newId);
+    }
+  };
+
+  const handleApiAdd = async (role: IRole) => {
+    setIsLoading(true);
+    try {
+      const res = await http.post('/api/Role', role);
+      if (res.status === 200) {
+        toast.success('Thêm role thành công');
+        setIsLoading(false);
+        return res;
+      }
+    } catch (error) {
+      setIsLoading(false);
+      toast.error(error?.response?.data?.message || 'Thêm role thất bại');
+    }
+  };
+
+  const handleApiDelete = async (roleId: string) => {
+    setIsLoading(true);
+    try {
+      const res = await http.delete(`/api/Role/${roleId}`);
+      if (res.status === 200) {
+        setIsLoading(false);
+        return res;
+      }
+    } catch (error) {
+      setIsLoading(false);
+      toast.error(error?.response?.data?.message || 'Xóa role thất bại');
+    }
+  };
+
+  const handleApiEdit = async (role: IRole) => {
+    setIsLoading(true);
+    try {
+      const res = await http.put(`/api/Role/${role.roleId}`, role);
+      if (res.status === 200) {
+        setIsLoading(false);
+        return res;
+      }
+    } catch (error) {
+      setIsLoading(false);
+      toast.error(error?.response?.data?.message || 'Sửa role thất bại');
+    }
   };
 
   const columns = [
     {
       title: 'Tên Role',
-      dataIndex: 'name',
+      dataIndex: 'roleName',
       render: (text: string, record: IRole) =>
         isEditing(record) ? (
-          <Form.Item name='name' style={{ margin: 0 }} rules={[{ required: true, message: 'Vui lòng nhập tên role!' }]}>
+          <Form.Item
+            name='roleName'
+            style={{ margin: 0 }}
+            rules={[{ required: true, message: 'Vui lòng nhập tên role!' }]}
+          >
             <Input placeholder='Nhập tên...' />
           </Form.Item>
         ) : (
@@ -74,38 +181,37 @@ export default function RoleTab({ roles, setRoles }: RoleTabProps) {
         )
     },
     {
-      title: 'Mô tả',
-      dataIndex: 'description',
-      render: (text: string, record: IRole) =>
-        isEditing(record) ? (
-          <Form.Item name='description' style={{ margin: 0 }}>
-            <Input placeholder='Nhập mô tả...' />
-          </Form.Item>
-        ) : (
-          text
-        )
-    },
-    {
       title: 'Hành động',
-      dataIndex: 'action',
+      dataIndex: 'handle',
       width: 150,
       align: 'center' as const,
       render: (_: unknown, record: IRole) => {
         const editable = isEditing(record);
         return editable ? (
           <Space>
-            <Button type='primary' size='small' onClick={() => save(record.id)} icon={<SaveOutlined />} />
-            <Button size='small' onClick={() => cancel(record.id)} icon={<CloseOutlined />} />
+            <Button
+              type='primary'
+              size='small'
+              onClick={() => handleSave(record.roleId)}
+              icon={<SaveOutlined />}
+              loading={isLoading}
+            />
+            <Button
+              size='small'
+              onClick={() => handleCancel(record.roleId)}
+              icon={<CloseOutlined />}
+              disabled={isLoading}
+            />
           </Space>
         ) : (
           <Space>
             <Button
               type='text'
-              onClick={() => edit(record)}
+              onClick={() => handleEdit(record)}
               icon={<EditOutlined style={{ color: '#1890ff' }} />}
               disabled={editingKey !== ''}
             />
-            <Popconfirm title='Bạn có chắc là muốn xóa role này?' onConfirm={() => handleDelete(record.id)}>
+            <Popconfirm title='Bạn có chắc là muốn xóa role này?' onConfirm={() => handleDelete(record)}>
               <Button type='text' danger icon={<DeleteOutlined />} disabled={editingKey !== ''} />
             </Popconfirm>
           </Space>

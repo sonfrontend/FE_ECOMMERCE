@@ -2,7 +2,7 @@ import { Button, Form, Input } from 'antd';
 import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 
-const Login = () => {
+const Register = () => {
   const navigate = useNavigate();
   const onFinish = async (values) => {
     try {
@@ -130,4 +130,4 @@ const Login = () => {
     </Form>
   );
 };
-export default Login;
+export default Register;

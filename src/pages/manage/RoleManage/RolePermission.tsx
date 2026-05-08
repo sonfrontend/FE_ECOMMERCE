@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Form, Button, Table, Space, Tag, Select, Typography } from 'antd';
 import { EditOutlined, SaveOutlined, CloseOutlined } from '@ant-design/icons';
-import { IRole, IPermission, IRolePermission } from './types';
+import { IRole, IPermission } from './types';
+import http from '@/apis/http';
+import { toast } from 'react-toastify';
 
 const { Title } = Typography;
 
-interface RolePermissionTabProps {
-  roles: IRole[];
-  permissions: IPermission[];
-  rolePermissions: IRolePermission[];
-  setRolePermissions: React.Dispatch<React.SetStateAction<IRolePermission[]>>;
+interface IRawRolePermission {
+  rolePermissionId: string;
+  roleId: string;
+  permissionId: string;
 }
 
 interface IRolePermissionRecord {
@@ -17,42 +18,117 @@ interface IRolePermissionRecord {
   permissionIds: string[];
 }
 
-export default function RolePermissionTab({
-  roles,
-  permissions,
-  rolePermissions,
-  setRolePermissions
-}: RolePermissionTabProps) {
+export default function RolePermissionTab() {
+  const [roles, setRoles] = useState<IRole[]>([]);
+  const [permissions, setPermissions] = useState<IPermission[]>([]);
+  const [rawRolePermissions, setRawRolePermissions] = useState<IRawRolePermission[]>([]);
   const [form] = Form.useForm();
   const [editingKey, setEditingKey] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchRolePermissions = async () => {
+    try {
+      const rpRes = await http.get('/api/RolePermission');
+      console.log(rpRes);
+
+      if (rpRes.status === 200) {
+        const rpData = Array.isArray(rpRes.data) ? rpRes.data : rpRes.data?.data || [];
+        const rawRP = rpData.map((item) => ({
+          rolePermissionId: item.rolePermissionId?.toLowerCase(),
+          roleId: item.roleId?.toLowerCase(),
+          permissionId: item.permissionId?.toLowerCase()
+        }));
+        setRawRolePermissions(rawRP);
+      }
+    } catch (error) {
+      console.error('Failed to fetch RolePermissions:', error);
+    }
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [roleRes, permRes] = await Promise.all([http.get('/api/Role'), http.get('/api/Permission')]);
+
+        if (roleRes.status === 200) {
+          const rolesData = Array.isArray(roleRes.data) ? roleRes.data : roleRes.data?.data || [];
+          setRoles(
+            rolesData.map((item) => ({
+              roleId: item.roleId?.toLowerCase(),
+              roleName: item.roleName
+            }))
+          );
+        }
+
+        if (permRes.status === 200) {
+          const permsData = Array.isArray(permRes.data) ? permRes.data : permRes.data?.data || [];
+          setPermissions(
+            permsData.map((item) => ({
+              id: item.permissionId?.toLowerCase(),
+              code: item.permissionName,
+              name: item.description
+            }))
+          );
+        }
+
+        await fetchRolePermissions();
+      } catch (error) {
+        console.error('Failed to fetch data for RolePermission:', error);
+      }
+    };
+    fetchData();
+  }, []);
 
   const isEditing = (record: IRolePermissionRecord) => record.roleId === editingKey;
 
-  const edit = (record: IRolePermissionRecord) => {
+  const handleEdit = (record: IRolePermissionRecord) => {
     form.setFieldsValue({ permissionIds: record.permissionIds });
     setEditingKey(record.roleId);
   };
 
-  const cancel = () => {
+  const handleCancel = () => {
     setEditingKey('');
   };
 
-  const save = async (roleId: string) => {
+  const handleSave = async (roleId: string) => {
     try {
       const row = await form.validateFields();
-      const newData = [...rolePermissions];
-      const index = newData.findIndex((item) => item.roleId === roleId);
+      const newPermissionIds: string[] = row.permissionIds || [];
 
-      if (index > -1) {
-        newData[index].permissionIds = row.permissionIds || [];
-      } else {
-        newData.push({ roleId, permissionIds: row.permissionIds || [] });
+      const rps = rawRolePermissions.filter((x) => x.roleId === roleId);
+      const oldPermissionIds = rps.map((x) => x.permissionId);
+
+      const toAdd = newPermissionIds.filter((id) => !oldPermissionIds.includes(id));
+      const toRemove = oldPermissionIds.filter((id) => !newPermissionIds.includes(id));
+
+      if (toAdd.length === 0 && toRemove.length === 0) {
+        setEditingKey('');
+        return;
       }
 
-      setRolePermissions(newData);
+      setIsLoading(true);
+
+      for (const permissionId of toAdd) {
+        await http.post('/api/RolePermission', { roleId, permissionId });
+      }
+
+      for (const permissionId of toRemove) {
+        const rpToDelete = rps.find((x) => x.permissionId === permissionId);
+        if (rpToDelete) {
+          await http.delete(`/api/RolePermission/${rpToDelete.rolePermissionId}`);
+        }
+      }
+
+      toast.success('Cập nhật quyền thành công');
+      await fetchRolePermissions();
       setEditingKey('');
+      setIsLoading(false);
     } catch (errInfo) {
-      console.log('Validate Failed:', errInfo);
+      const error = errInfo;
+      setIsLoading(false);
+      const errorMsg =
+        error?.response?.data?.message || error?.response?.data?.title || 'Cập nhật thất bại. Vui lòng thử lại!';
+      toast.error(errorMsg);
     }
   };
 
@@ -62,10 +138,10 @@ export default function RolePermissionTab({
       dataIndex: 'roleId',
       width: 200,
       render: (roleId: string) => {
-        const role = roles.find((r) => r.id === roleId);
+        const role = roles.find((r) => r.roleId === roleId);
         return (
           <Tag color='geekblue' className='text-sm px-2 py-1'>
-            {role?.name || roleId}
+            {role?.roleName || roleId}
           </Tag>
         );
       }
@@ -117,14 +193,20 @@ export default function RolePermissionTab({
         const editable = isEditing(record);
         return editable ? (
           <Space>
-            <Button type='primary' size='small' onClick={() => save(record.roleId)} icon={<SaveOutlined />} />
-            <Button size='small' onClick={cancel} icon={<CloseOutlined />} />
+            <Button
+              type='primary'
+              size='small'
+              onClick={() => handleSave(record.roleId)}
+              icon={<SaveOutlined />}
+              loading={isLoading}
+            />
+            <Button size='small' onClick={handleCancel} icon={<CloseOutlined />} disabled={isLoading} />
           </Space>
         ) : (
           <Space>
             <Button
               type='text'
-              onClick={() => edit(record)}
+              onClick={() => handleEdit(record)}
               icon={<EditOutlined style={{ color: '#1890ff' }} />}
               disabled={editingKey !== ''}
             />
@@ -134,12 +216,11 @@ export default function RolePermissionTab({
     }
   ];
 
-  // Map roles into dataSource for table
   const dataSource: IRolePermissionRecord[] = roles.map((r) => {
-    const rp = rolePermissions.find((x) => x.roleId === r.id);
+    const rps = rawRolePermissions.filter((x) => x.roleId === r.roleId);
     return {
-      roleId: r.id,
-      permissionIds: rp ? rp.permissionIds : []
+      roleId: r.roleId,
+      permissionIds: rps.map((x) => x.permissionId)
     };
   });
 

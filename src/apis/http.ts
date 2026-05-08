@@ -37,6 +37,7 @@ class Http {
           originalRequest._retry = true;
           try {
             const refreshToken = localStorage.getItem('refreshToken');
+
             if (!refreshToken) {
               throw new Error('Không có Refresh Token');
             }
@@ -45,13 +46,12 @@ class Http {
               refreshToken: refreshToken
             });
 
-            const { token, refreshToken: newRefreshToken } = response.data;
+            const { accessToken, refreshToken: newRefreshToken } = response.data;
 
-            localStorage.setItem('accessToken', token);
+            localStorage.setItem('accessToken', accessToken);
             localStorage.setItem('refreshToken', newRefreshToken);
 
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
             return this.instance(originalRequest);
           } catch (refreshError) {
             localStorage.removeItem('accessToken');
