@@ -8,6 +8,11 @@ const Manager = lazy(() => import('@/pages/manage/Manage'));
 const MainLayout = lazy(() => import('@/layouts/MainLayout'));
 const ProtectedRoute = lazy(() => import('@/components/Route/ProtectedRoute'));
 
+const Home = lazy(() => import('@/pages/Home/Home'));
+const ProductDetail = lazy(() => import('@/pages/Product/ProductDetail'));
+
+const Search = lazy(() => import('@/pages/Search/Search'));
+
 export default function useRouteElements() {
   const routeElements = useRoutes([
     {
@@ -38,7 +43,21 @@ export default function useRouteElements() {
         // đều sẽ được rót vào cái thẻ <Outlet /> của ProtectedRoute
         {
           path: '', // Tương đương với link gốc '/'
-          element: <MainLayout />
+          element: <MainLayout />,
+          children: [
+            {
+              path: '',
+              element: <Home />
+            },
+            {
+              path: 'product/:id',
+              element: <ProductDetail />
+            },
+            {
+              path: 'search',
+              element: <Search />
+            }
+          ]
         }
       ]
     },

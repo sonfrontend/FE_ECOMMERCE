@@ -1,0 +1,121 @@
+/* 1. Sử dụng border-box cho toàn bộ element để tính toán kích thước dễ hơn */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* 2. Reset margin mặc định */
+body,
+h1,
+h2,
+h3,
+h4,
+p,
+figure,
+blockquote,
+dl,
+dd {
+  margin: 0;
+}
+
+/* 3. Xóa list style trên danh sách (ul, ol) để tự custom */
+ul[role='list'],
+ol[role='list'] {
+  list-style: none;
+}
+
+/* 4. Thêm cuộn mượt (smooth scrolling) cho trang */
+html:focus-within {
+  scroll-behavior: smooth;
+}
+
+/* 5. Cài đặt mặc định cho body */
+body {
+  min-height: 100vh;
+  text-rendering: optimizeSpeed;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 6. Tránh lỗi gạch chân đè lên chữ ở các thẻ a không có class */
+a:not([class]) {
+  text-decoration-skip-ink: auto;
+}
+
+/* 7. Giúp hình ảnh và video không bao giờ tràn ra khỏi container chứa nó */
+img,
+picture,
+video,
+canvas,
+svg {
+  max-width: 100%;
+  display: block;
+}
+
+/* 8. Kế thừa font chữ cho các thẻ form (mặc định trình duyệt hay dùng font khác) */
+input,
+button,
+textarea,
+select {
+  font: inherit;
+}
+
+/* 9. Loại bỏ gạch chân xanh mặc định của Ant Design */
+.ant-menu-horizontal {
+  border-bottom: none !important;
+}
+.ant-menu-horizontal > .ant-menu-item:hover::after,
+.ant-menu-horizontal > .ant-menu-item-selected::after,
+.ant-menu-horizontal > .ant-menu-submenu:hover::after,
+.ant-menu-horizontal > .ant-menu-submenu-selected::after {
+  border-bottom: 2px solid #000 !important;
+}
+.ant-menu-item-selected,
+.ant-menu-submenu-selected {
+  color: #000 !important;
+}
+
+/* 10. Hiệu ứng sóng âm cho tìm kiếm giọng nói */
+.audio-wave {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 60px;
+}
+.audio-wave .bar {
+  width: 6px;
+  border-radius: 3px;
+  background: #e50010;
+  animation: wave 1s ease-in-out infinite alternate;
+}
+.audio-wave .bar:nth-child(1) {
+  height: 20%;
+  animation-delay: 0.1s;
+}
+.audio-wave .bar:nth-child(2) {
+  height: 70%;
+  animation-delay: 0.2s;
+}
+.audio-wave .bar:nth-child(3) {
+  height: 100%;
+  animation-delay: 0.3s;
+}
+.audio-wave .bar:nth-child(4) {
+  height: 40%;
+  animation-delay: 0.4s;
+}
+@keyframes wave {
+  0% {
+    transform: scaleY(0.2);
+  }
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+/* 11. Tối ưu hóa hình ảnh thumbnail trên Chrome/Edge (loại bỏ viền xanh khi click) */
+img {
+  -webkit-tap-highlight-color: transparent;
+}
