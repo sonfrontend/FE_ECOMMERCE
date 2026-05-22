@@ -109,8 +109,23 @@ const ProductDetail: React.FC = () => {
     }
   };
 
-  const handleAddToCart = () => {
-    message.success(`Đã thêm ${quantity} sản phẩm vào giỏ hàng`);
+  const handleAddToCart = async () => {
+    if (!currentVariant) {
+      message.error('Vui lòng chọn phân loại hàng');
+      return;
+    }
+
+    try {
+      await http.post('/api/Cart', {
+        articleId: currentVariant.articleId,
+        quantity: quantity
+      });
+      message.success(`Đã thêm ${quantity} sản phẩm vào giỏ hàng`);
+      // Báo hiệu cho Header cập nhật giỏ hàng
+      window.dispatchEvent(new Event('cart-updated'));
+    } catch (error) {
+      message.error(error.message || 'Vui lòng đăng nhập để thêm vào giỏ hàng!');
+    }
   };
 
   const thumbnails = [

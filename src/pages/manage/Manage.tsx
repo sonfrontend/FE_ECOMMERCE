@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Layout, Menu, Typography } from 'antd';
-import { UserOutlined, ArrowLeftOutlined, KeyOutlined } from '@ant-design/icons';
+import { UserOutlined, ArrowLeftOutlined, KeyOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { Link } from 'react-router-dom';
 import AccountManage from './AccountManage';
 import RoleManage from './RoleManage/RoleManage';
+import OrderManage from '../Order/OrderManage';
 
 const { Sider, Content } = Layout;
 const { Title } = Typography;
@@ -16,6 +17,7 @@ export default function Manager() {
   const menuItems: MenuProps['items'] = [
     { key: '1', icon: <UserOutlined />, label: 'Quản lý tài khoản' },
     { key: '2', icon: <KeyOutlined />, label: 'Quản lý phân quyền' },
+    { key: '3', icon: <ShoppingCartOutlined />, label: 'Quản lý đơn hàng' },
     { type: 'divider' },
     { key: 'back', icon: <ArrowLeftOutlined />, label: <Link to='/'>Về trang chủ</Link> }
   ];
@@ -46,6 +48,7 @@ export default function Manager() {
           {/* TAB 1: Quản lý tài khoản */}
           {activeTab === '1' && <AccountManage />}
           {activeTab === '2' && <RoleManage />}
+          {activeTab === '3' && <OrderManage />}
         </Content>
       </Layout>
     </Layout>

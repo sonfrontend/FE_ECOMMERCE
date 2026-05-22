@@ -12,6 +12,8 @@ const Home = lazy(() => import('@/pages/Home/Home'));
 const ProductDetail = lazy(() => import('@/pages/Product/ProductDetail'));
 
 const Search = lazy(() => import('@/pages/Search/Search'));
+const Cart = lazy(() => import('@/pages/Cart/Cart'));
+const OrderHistory = lazy(() => import('@/pages/Order/OrderHistory'));
 
 export default function useRouteElements() {
   const routeElements = useRoutes([
@@ -56,6 +58,14 @@ export default function useRouteElements() {
             {
               path: 'search',
               element: <Search />
+            },
+            {
+              path: 'cart',
+              element: <Cart />
+            },
+            {
+              path: 'history',
+              element: <OrderHistory />
             }
           ]
         }
