@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Breadcrumb, Button, Skeleton, message } from 'antd';
-import { ShoppingCartOutlined, RightOutlined } from '@ant-design/icons';
+import { Breadcrumb, Button, Skeleton, message, Image } from 'antd';
+import { ShoppingCartOutlined, RightOutlined, HeartOutlined, HeartFilled } from '@ant-design/icons';
 import http from '@/apis/http';
+import { addAIHistory } from '@/utils/aiHistory';
+import { isFavorite, toggleFavorite } from '@/utils/favorite';
 
 interface ProductVariant {
   articleId: string;
@@ -38,6 +40,7 @@ const ProductDetail: React.FC = () => {
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(1);
   const [mainImage, setMainImage] = useState<string>('');
+  const [isFav, setIsFav] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchProductDetail = async () => {
@@ -50,6 +53,7 @@ const ProductDetail: React.FC = () => {
           setMainImage(res.data.imageUrl);
           setSelectedColor(res.data.color);
           setSelectedSize(res.data.size);
+          setIsFav(isFavorite(res.data.articleId));
         }
       } catch (error) {
         message.error(String(error));
@@ -62,6 +66,18 @@ const ProductDetail: React.FC = () => {
       fetchProductDetail();
     }
   }, [id]);
+
+  // AI Tracking: Sản phẩm xem lâu (5 giây)
+  useEffect(() => {
+    if (!product) return;
+    
+    const timer = setTimeout(() => {
+      addAIHistory(product.articleId);
+      console.log('AI History: Added viewed product', product.articleId);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [product]);
 
   if (loading) {
     return (
@@ -123,8 +139,20 @@ const ProductDetail: React.FC = () => {
       message.success(`Đã thêm ${quantity} sản phẩm vào giỏ hàng`);
       // Báo hiệu cho Header cập nhật giỏ hàng
       window.dispatchEvent(new Event('cart-updated'));
+      
+      // AI Tracking: Lưu vào lịch sử khi thêm giỏ hàng
+      addAIHistory(currentVariant.articleId);
+      console.log('AI History: Added to cart', currentVariant.articleId);
+      
     } catch (error) {
       message.error(error.message || 'Vui lòng đăng nhập để thêm vào giỏ hàng!');
+    }
+  };
+
+  const handleToggleFav = () => {
+    if (product) {
+      const newState = toggleFavorite(product.articleId);
+      setIsFav(newState);
     }
   };
 
@@ -192,11 +220,12 @@ const ProductDetail: React.FC = () => {
         <div className='bg-white shadow-sm rounded-sm flex flex-row p-0 min-w-[900px]'>
           {/* CỘT TRÁI: Hình ảnh */}
           <div className='w-[400px] flex flex-col shrink-0 p-4'>
-            <div className='w-full h-[400px] bg-gray-50 relative cursor-pointer border border-gray-100 mb-4 '>
-              <img
+            <div className='w-full h-[400px] bg-gray-50 relative cursor-pointer border border-gray-100 mb-4 flex justify-center items-center overflow-hidden'>
+              <Image
                 src={'http://localhost:5000/images/' + (mainImage || product.imageUrl)}
                 alt={product.productName}
-                className='w-full h-full object-contain'
+                className='object-contain'
+                style={{ maxWidth: '400px', maxHeight: '400px' }}
               />
             </div>
             {thumbnails.length > 0 && (
@@ -338,6 +367,12 @@ const ProductDetail: React.FC = () => {
               >
                 Mua Ngay
               </Button>
+              <Button
+                size='large'
+                icon={isFav ? <HeartFilled className='text-[#ee4d2d] text-[20px]' /> : <HeartOutlined className='text-gray-500 text-[20px] group-hover:text-[#ee4d2d]' />}
+                onClick={handleToggleFav}
+                className={`h-[48px] w-[48px] rounded-sm shadow-none flex items-center justify-center border-gray-300 group ${isFav ? 'border-[#ee4d2d] bg-[#ffeceb]' : 'hover:border-[#ee4d2d] hover:bg-gray-50'}`}
+              />
             </div>
           </div>
         </div>
