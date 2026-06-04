@@ -1,3 +1,5 @@
+import { toggleFavoriteApi } from '@/apis/favoriteApi';
+
 export const getFavorites = (): string[] => {
   try {
     const data = localStorage.getItem('favorite_ids');
@@ -24,13 +26,21 @@ export const removeFavorite = (articleId: string) => {
 
 export const toggleFavorite = (articleId: string): boolean => {
   let history = getFavorites();
+  let isFavorited = false;
   if (history.includes(articleId)) {
     removeFavorite(articleId);
-    return false; // is now unfavorited
+    isFavorited = false;
   } else {
     addFavorite(articleId);
-    return true; // is now favorited
+    isFavorited = true;
   }
+
+  // Gọi API nền để lưu vào DB (Nếu đã đăng nhập)
+  toggleFavoriteApi(articleId).catch(() => {
+    // Silently ignore if not logged in
+  });
+
+  return isFavorited;
 };
 
 export const isFavorite = (articleId: string): boolean => {

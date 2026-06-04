@@ -50,6 +50,25 @@ const OrderHistory: React.FC = () => {
     }
   };
 
+  const getStatusText = (status: string, paymentMethod: string) => {
+    switch (status.toLowerCase()) {
+      case OrderStatus.PendingPayment.toLowerCase():
+        return 'Đã đặt mà chưa thanh toán';
+      case OrderStatus.Pending.toLowerCase():
+        return paymentMethod === 'COD' ? 'Đã đặt' : 'Đã đặt và thanh toán rồi';
+      case OrderStatus.Processing.toLowerCase():
+        return 'Nhận đơn và chuẩn bị đồ để giao';
+      case OrderStatus.Shipped.toLowerCase():
+        return 'Đang giao';
+      case OrderStatus.Delivered.toLowerCase():
+        return paymentMethod === 'COD' ? 'Đã nhận và thanh toán - hoàn thành' : 'Đã nhận - hoàn thành';
+      case OrderStatus.Cancelled.toLowerCase():
+        return 'Đã hủy';
+      default:
+        return status;
+    }
+  };
+
   if (loading && orders.length === 0) {
     return (
       <div className='p-8 max-w-[1200px] mx-auto'>
@@ -82,16 +101,20 @@ const OrderHistory: React.FC = () => {
                     {order.status === OrderStatus.PendingPayment && (
                       <OrderTimer 
                         startTime={order.orderDate} 
-                        onExpire={() => {
-                          message.error(`Đã hết 2 phút! Đơn hàng #${order.id} đã bị hủy.`);
-                          // 2. TỰ ĐỘNG GỌI LẠI API ĐỂ CẬP NHẬT TRẠNG THÁI MỚI (MƯỢT MÀ, KHÔNG CHỚP TRANG)
-                          fetchOrders(); 
+                        onExpire={async () => {
+                          try {
+                            await http.put(`/api/Order/${order.id}/cancel`);
+                            message.error(`Đã hết 2 phút! Đơn hàng #${order.id} đã bị hủy.`);
+                            fetchOrders(); 
+                          } catch (error) {
+                            console.error('Lỗi khi hủy đơn hàng:', error);
+                          }
                         }} 
                       />
                     )}
                     
                     <Tag color={getStatusColor(order.status)} className='text-sm px-3 py-1 m-0'>
-                      {order.status}
+                      {getStatusText(order.status, order.paymentMethod)}
                     </Tag>
                   </Flex>
                 </div>
@@ -106,7 +129,7 @@ const OrderHistory: React.FC = () => {
                         <List.Item.Meta
                           avatar={
                             <img
-                              src={'http://localhost:5000/images/' + item.imageUrl}
+                              src={'http://localhost:5000' + item.imageUrl}
                               className='w-20 h-20 object-cover border border-gray-200'
                               alt='product'
                             />
@@ -132,9 +155,14 @@ const OrderHistory: React.FC = () => {
                     <Text className='text-gray-500 mb-1 text-sm block'>
                       Giao đến: {order.recipientName} - {order.phoneNumber} ({order.shippingAddress})
                     </Text>
-                    <Text className='text-gray-500 text-sm block'>
-                      Phương thức thanh toán: <span className='font-medium text-gray-700'>{order.paymentMethod === 'COD' ? 'Thanh toán khi nhận hàng (COD)' : 'Chuyển khoản (PAYPAL)'}</span>
-                    </Text>
+                    <div className='flex items-center gap-2 mb-1'>
+                      <Text className='text-gray-500 text-sm'>Phương thức thanh toán: <span className='font-medium text-gray-700'>{order.paymentMethod === 'COD' ? 'Thanh toán khi nhận hàng (COD)' : 'Chuyển khoản (PAYPAL)'}</span></Text>
+                      {order.isPaid ? (
+                        <Tag color="green" className="m-0 border-none px-2 rounded-md">Đã thanh toán</Tag>
+                      ) : (
+                        <Tag color="volcano" className="m-0 border-none px-2 rounded-md">Chưa thanh toán</Tag>
+                      )}
+                    </div>
                   </div>
                   
                   <div className='flex flex-col items-end gap-3'>

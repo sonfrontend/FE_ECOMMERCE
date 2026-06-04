@@ -1,6 +1,7 @@
 import useRouteElements from './hook/useElementRoute';
 import { ToastContainer } from 'react-toastify';
 import './styles/reset.css';
+import './index.css';
 
 function App() {
   const routeElements = useRouteElements();

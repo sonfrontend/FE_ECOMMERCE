@@ -8,3 +8,30 @@
   --breakpoint-laptop: 64rem;
   --breakpoint-desktop: 80rem;
 }
+
+.mega-menu-popup-custom {
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: max-content !important;
+  max-width: 90vw !important;
+}
+
+.mega-menu-popup-custom .ant-menu-sub {
+  padding: 0 !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important; /* Allow content to stretch */
+  min-width: fit-content !important; /* Let it widen for mega menu */
+}
+
+.mega-menu-item-wrapper {
+  height: auto !important;
+  line-height: normal !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.mega-menu-item-wrapper.ant-menu-item-active,
+.mega-menu-item-wrapper.ant-menu-item-selected {
+  background-color: transparent !important;
+}

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Select, message, Typography } from 'antd';
+import { Table, Select, message, Typography, Button, Space, Tag } from 'antd';
+import { CheckCircleOutlined } from '@ant-design/icons';
 import http from '@/apis/http';
 
 const { Title } = Typography;
@@ -34,7 +35,33 @@ const OrderManage: React.FC = () => {
     }
   };
 
-  const statusOptions = ['Đang chờ xử lý', 'Đã duyệt', 'Đang giao', 'Đã giao', 'Đã hủy'];
+  const statusOptions = ['PendingPayment', 'Pending', 'Processing', 'Shipped', 'Completed', 'Cancelled', 'Refunded'];
+
+  const getStatusText = (status: string, paymentMethod: string) => {
+    switch(status) {
+      case 'PendingPayment': return 'Đã đặt mà chưa thanh toán';
+      case 'Pending': return paymentMethod === 'COD' ? 'Đã đặt' : 'Đã đặt và thanh toán rồi';
+      case 'Processing': return 'Nhận đơn và chuẩn bị đồ để giao';
+      case 'Shipped': return 'Đang giao';
+      case 'Completed': return paymentMethod === 'COD' ? 'Đã nhận và thanh toán - hoàn thành' : 'Đã nhận - hoàn thành';
+      case 'Cancelled': return 'Đã hủy';
+      case 'Refunded': return 'Hoàn tiền';
+      default: return status;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch(status) {
+      case 'PendingPayment': return 'orange';
+      case 'Pending': return 'gold';
+      case 'Processing': return 'blue';
+      case 'Shipped': return 'cyan';
+      case 'Completed': return 'green';
+      case 'Cancelled': return 'red';
+      case 'Refunded': return 'magenta';
+      default: return 'default';
+    }
+  }
 
   const columns = [
     {
@@ -73,13 +100,29 @@ const OrderManage: React.FC = () => {
       title: 'Trạng thái',
       key: 'status',
       render: (_: any, record: any) => (
-        <Select value={record.status} style={{ width: 150 }} onChange={(val) => handleStatusChange(record.id, val)}>
-          {statusOptions.map((s) => (
-            <Option key={s} value={s}>
-              {s}
-            </Option>
-          ))}
-        </Select>
+        <Space direction="vertical" size="small">
+          <Tag color={getStatusColor(record.status)}>{getStatusText(record.status, record.paymentMethod)}</Tag>
+          
+          <Select value={record.status} style={{ width: 250 }} onChange={(val) => handleStatusChange(record.id, val)}>
+            {statusOptions.map((s) => (
+              <Option key={s} value={s}>
+                {getStatusText(s, record.paymentMethod)}
+              </Option>
+            ))}
+          </Select>
+
+          {record.status === 'Pending' && (
+            <Button 
+              type="primary" 
+              size="small" 
+              icon={<CheckCircleOutlined />} 
+              style={{ background: '#52c41a', borderColor: '#52c41a' }}
+              onClick={() => handleStatusChange(record.id, 'Processing')}
+            >
+              Duyệt đơn
+            </Button>
+          )}
+        </Space>
       )
     }
   ];
@@ -103,6 +146,12 @@ const OrderManage: React.FC = () => {
               <p>
                 <b>Thanh toán:</b>{' '}
                 {record.paymentMethod === 'COD' ? 'Thanh toán khi nhận hàng (COD)' : 'Chuyển khoản (Mã QR)'}
+                {' - '}
+                {record.isPaid ? (
+                  <Tag color="green" className="m-0 border-none px-2 rounded-md">Đã thanh toán</Tag>
+                ) : (
+                  <Tag color="volcano" className="m-0 border-none px-2 rounded-md">Chưa thanh toán</Tag>
+                )}
               </p>
               <ul className='list-disc pl-5 mt-2'>
                 {record.orderItems.map((item: any, idx: number) => (

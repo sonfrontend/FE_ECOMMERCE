@@ -7,13 +7,23 @@ const Register = lazy(() => import('@/pages/auths/Register'));
 const Manager = lazy(() => import('@/pages/manage/Manage'));
 const MainLayout = lazy(() => import('@/layouts/MainLayout'));
 const ProtectedRoute = lazy(() => import('@/components/Route/ProtectedRoute'));
+const AdminRoute = lazy(() => import('@/components/Route/AdminRoute'));
 
 const Home = lazy(() => import('@/pages/Home/Home'));
 const ProductDetail = lazy(() => import('@/pages/Product/ProductDetail'));
+const CategoryProducts = lazy(() => import('@/pages/Product/CategoryProducts'));
 
-const Search = lazy(() => import('@/pages/Search/Search'));
 const Cart = lazy(() => import('@/pages/Cart/Cart'));
+const Checkout = lazy(() => import('@/pages/Checkout/Checkout'));
 const OrderHistory = lazy(() => import('@/pages/Order/OrderHistory'));
+
+// Admin Imports
+const AdminLayout = lazy(() => import('@/layouts/AdminLayout'));
+const AdminDashboard = lazy(() => import('@/pages/admin/Dashboard'));
+const AdminProductManage = lazy(() => import('@/pages/admin/ProductManage'));
+const AdminUserManage = lazy(() => import('@/pages/admin/AdminUserManage'));
+const RoleManage = lazy(() => import('@/pages/admin/RoleManage/RoleManage'));
+const OrderManage = lazy(() => import('@/pages/admin/OrderManage'));
 
 export default function useRouteElements() {
   const routeElements = useRoutes([
@@ -39,33 +49,76 @@ export default function useRouteElements() {
     },
     {
       path: '/',
-      element: <ProtectedRoute />, // Đặt anh bảo vệ đứng ngay cửa chính
+      element: <MainLayout />,
       children: [
-        // Bất cứ trang nào nhét vào cái mảng children này
-        // đều sẽ được rót vào cái thẻ <Outlet /> của ProtectedRoute
         {
-          path: '', // Tương đương với link gốc '/'
-          element: <MainLayout />,
+          path: '',
+          element: <Home />
+        },
+        {
+          path: 'category/:id',
+          element: <CategoryProducts mode="category" />
+        },
+        {
+          path: 'search',
+          element: <CategoryProducts mode="search" />
+        },
+        {
+          path: 'flash-sale',
+          element: <CategoryProducts mode="flash-sale" />
+        },
+        // Các trang yêu cầu đăng nhập
+        {
+          path: '',
+          element: <ProtectedRoute />,
           children: [
-            {
-              path: '',
-              element: <Home />
-            },
             {
               path: 'product/:id',
               element: <ProductDetail />
-            },
-            {
-              path: 'search',
-              element: <Search />
             },
             {
               path: 'cart',
               element: <Cart />
             },
             {
+              path: 'checkout',
+              element: <Checkout />
+            },
+            {
               path: 'history',
               element: <OrderHistory />
+            }
+          ]
+        }
+      ]
+    },
+    {
+      path: '/admin',
+      element:  <ProtectedRoute role='Admin' />, // Bảo vệ route admin
+      children: [
+        {
+          path: '',
+          element: <AdminLayout />,
+          children: [
+            {
+              path: '',
+              element: <AdminDashboard />
+            },
+            {
+              path: 'products',
+              element: <AdminProductManage />
+            },
+            {
+              path: 'users',
+              element: <AdminUserManage />
+            },
+            {
+              path: 'roles',
+              element: <RoleManage />
+            },
+            {
+              path: 'orders',
+              element: <OrderManage />
             }
           ]
         }

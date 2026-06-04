@@ -34,7 +34,7 @@ import {
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import type { UploadFile } from 'antd/es/upload/interface';
-import hmLogo from '@/assets/images/H&M-Logo.svg.png';
+import hmLogo from '@/assets/images/logos/Logo.png';
 import http from '@/apis/http';
 import { ItemType, MenuItemType } from 'antd/es/menu/interface';
 
@@ -72,6 +72,11 @@ const AppHeader: React.FC = () => {
 
   // --- STATES GIỎ HÀNG ---
   const [cartItems, setCartItems] = useState<any[]>([]);
+
+  // --- THÔNG TIN ĐĂNG NHẬP ---
+  const userInfoStr = localStorage.getItem('userInfo');
+  const userInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
+  const isLoggedIn = !!localStorage.getItem('accessToken');
 
   // ====================================================================
   // LOGIC: LẤY DỮ LIỆU GIỎ HÀNG
@@ -218,7 +223,8 @@ const AppHeader: React.FC = () => {
       handleRemoveImage();
       
       // Navigate qua trang Search kèm query
-      navigate('/search?image=true', { state: { products: res.data.data } }); 
+      const imageUrl = URL.createObjectURL(fileToUpload as Blob);
+      navigate('/search?image=true', { state: { products: res.data.data, activeSearchImage: imageUrl } }); 
     } catch (error) {
       message.error({ content: 'Lỗi khi phân tích ảnh!', key: 'ai-search' });
     } finally {
@@ -236,14 +242,13 @@ const AppHeader: React.FC = () => {
   }, []);
 
   const [menuItems, setMenuItems] = useState<MenuProps['items']>([
-    { key: 'home', label: 'Trang chủ', onClick: () => navigate('/') },
-    {
-      key: 'products',
-      label: 'Sản phẩm',
-      popupClassName: 'mega-menu-popup',
-      children: []
-    },
-    { key: 'recommendations', label: 'Đề xuất', onClick: () => navigate('/?tab=recommended') }
+    { key: 'home', label: 'TRANG CHỦ', onClick: () => navigate('/') },
+    { key: 'loading', label: 'ĐANG TẢI...' }
+  ]);
+
+  const [mobileMenuItems, setMobileMenuItems] = useState<MenuProps['items']>([
+    { key: 'home', label: 'TRANG CHỦ', onClick: () => { navigate('/'); setMobileMenuOpen(false); } },
+    { key: 'loading', label: 'ĐANG TẢI...' }
   ]);
 
   useEffect(() => {
@@ -253,21 +258,103 @@ const AppHeader: React.FC = () => {
         let categories: Category[] = res.data;
         categories = categories.filter((cat) => cat.parentId === null || cat.parentId === undefined);
 
-        const dynamicChildren = categories.map((cat) => ({
-          key: `cat_${cat.id}`,
-          label: cat.name,
-          onClick: () => navigate(`/?tab=category&category=${cat.id}`)
-        }));
+        const categoryItems = categories.map((cat) => {
+          if (!cat.subCategories || cat.subCategories.length === 0) {
+            return {
+              key: `cat_${cat.id}`,
+              label: cat.name,
+              onClick: () => navigate(`/category/${cat.id}`)
+            };
+          }
 
-        setMenuItems((prev) => [
-          prev![0],
-          {
-            key: 'products',
-            label: 'Sản phẩm',
-            popupClassName: 'mega-menu-popup',
-            children: dynamicChildren as ItemType<MenuItemType>[]
-          },
-          prev![2]
+          return {
+            key: `cat_${cat.id}`,
+            label: (
+              <span onClick={() => navigate(`/category/${cat.id}`)}>
+                {cat.name}
+              </span>
+            ),
+            popupClassName: 'mega-menu-popup-custom',
+            children: [
+              {
+                key: `mega_${cat.id}`,
+                className: 'mega-menu-item-wrapper p-0 m-0 cursor-default hover:bg-transparent',
+                label: (
+                  <div className="flex flex-col gap-5 p-6 bg-white cursor-default min-w-[500px] max-w-[85vw] lg:max-w-[1000px] max-h-[70vh] overflow-y-auto custom-scrollbar overflow-x-hidden shadow-2xl rounded-xl border border-gray-100 mx-4 my-2">
+                     <div className="w-full shrink-0 border-b border-gray-100 pb-2">
+                       <h2 className="text-lg font-bold uppercase text-black mb-2">Danh mục {cat.name}</h2>
+                       <div className="h-1 w-16 bg-green-500"></div>
+                     </div>
+                     <div className="flex gap-8 flex-wrap">
+                       {cat.subCategories.map(sub => (
+                         <div key={sub.id} className="min-w-[140px]">
+                           <h3 className="text-gray-400 font-medium mb-2 border-b border-gray-100 pb-1 uppercase text-[13px]">{sub.name}</h3>
+                           <ul className="space-y-2">
+                             {sub.subCategories?.map(leaf => (
+                               <li key={leaf.id} 
+                                   className="text-gray-600 hover:text-blue-600 cursor-pointer text-[13px] flex items-center gap-2 font-normal normal-case transition-colors"
+                                   onClick={(e) => { e.stopPropagation(); navigate(`/category/${cat.id}?sub=${leaf.id}`); setMobileMenuOpen(false); }}>
+                                 <span className="text-gray-400 text-[10px] font-bold">&gt;</span> {leaf.name}
+                               </li>
+                             ))}
+                           </ul>
+                         </div>
+                       ))}
+                     </div>
+                  </div>
+                )
+              }
+            ]
+          };
+        });
+
+        setMenuItems([
+          { key: 'home', label: 'HOME', onClick: () => navigate('/') },
+          { key: 'flashsale', label: <span className="text-[#ee4d2d]">FLASH SALE</span>, onClick: () => navigate('/flash-sale') },
+          ...categoryItems,
+        ]);
+
+        const mobileCategoryItems = categories.map((cat) => {
+          if (!cat.subCategories || cat.subCategories.length === 0) {
+            return {
+              key: `m_cat_${cat.id}`,
+              label: cat.name,
+              onClick: () => { navigate(`/category/${cat.id}`); setMobileMenuOpen(false); }
+            };
+          }
+
+          return {
+            key: `m_cat_${cat.id}`,
+            label: (
+              <span onClick={() => { navigate(`/category/${cat.id}`); setMobileMenuOpen(false); }}>
+                {cat.name}
+              </span>
+            ),
+            children: cat.subCategories.map(sub => {
+              if (!sub.subCategories || sub.subCategories.length === 0) {
+                return {
+                  key: `m_sub_${sub.id}`,
+                  label: sub.name,
+                  onClick: () => { navigate(`/category/${cat.id}?sub=${sub.id}`); setMobileMenuOpen(false); }
+                };
+              }
+              return {
+                key: `m_sub_${sub.id}`,
+                label: sub.name,
+                children: sub.subCategories.map(leaf => ({
+                  key: `m_leaf_${leaf.id}`,
+                  label: leaf.name,
+                  onClick: () => { navigate(`/category/${cat.id}?sub=${leaf.id}`); setMobileMenuOpen(false); }
+                }))
+              };
+            })
+          };
+        });
+
+        setMobileMenuItems([
+          { key: 'm_home', label: 'HOME', onClick: () => { navigate('/'); setMobileMenuOpen(false); } },
+          { key: 'm_flashsale', label: <span className="text-[#ee4d2d]">FLASH SALE</span>, onClick: () => { navigate('/flash-sale'); setMobileMenuOpen(false); } },
+          ...mobileCategoryItems,
         ]);
       } catch (error) {
         console.error('Lỗi khi tải danh mục', error);
@@ -276,12 +363,18 @@ const AppHeader: React.FC = () => {
     fetchCategories();
   }, [navigate]);
 
-  const profileItems: MenuProps['items'] = [
-    { key: 'manage', label: 'Quản lý tài khoản', icon: <UserOutlined />, onClick: () => (window.location.href = '/manage') },
-    { key: 'history', label: 'Đơn mua', icon: <ShoppingCartOutlined />, onClick: () => navigate('/history') },
+  const profileItems: MenuProps['items'] = isLoggedIn ? [
+    {
+      key: 'title',
+      label: <span className="font-bold text-gray-800 uppercase">{userInfo?.fullName || userInfo?.username || 'Người dùng'}</span>,
+      disabled: true,
+      style: { cursor: 'default' }
+    },
+    { type: 'divider' },
+    { key: 'manage', label: 'Manage', icon: <UserOutlined />, onClick: () => (window.location.href = '/manage') },
     {
       key: 'logout',
-      label: 'Đăng xuất',
+      label: 'Logout',
       icon: <LogoutOutlined />,
       danger: true,
       onClick: () => {
@@ -291,6 +384,8 @@ const AppHeader: React.FC = () => {
         window.location.href = '/login';
       }
     }
+  ] : [
+    { key: 'login', label: 'Đăng nhập', icon: <UserOutlined />, onClick: () => navigate('/login') }
   ];
 
   // ====================================================================
@@ -308,7 +403,7 @@ const AppHeader: React.FC = () => {
               <List.Item.Meta
                 avatar={
                   <img
-                    src={'http://localhost:5000/images/' + item.product.imageUrl}
+                    src={'http://localhost:5000/' + item.product.imageUrl}
                     alt={item.product.productName}
                     className='w-10 h-10 object-cover border border-gray-200 cursor-pointer'
                     onClick={() => navigate(`/product/${item.product.productCode}`)}
@@ -357,16 +452,17 @@ const AppHeader: React.FC = () => {
         }`}
       >
         <div className='flex items-center gap-4'>
-          <Button type='text' icon={<MenuOutlined className='text-xl ' />} onClick={() => setMobileMenuOpen(true)} />
+          <div className='laptop:!hidden'>
+ <Button  type='text' icon={<MenuOutlined className='text-xl' />} onClick={() => setMobileMenuOpen(true)} />
+</div>
           <img
             src={hmLogo}
             alt='Logo'
-            className={`transition-all duration-300 cursor-pointer ${scrolled ? 'h-6' : 'h-8'}`}
+            className={`transition-all duration-300 cursor-pointer ${scrolled ? 'h-8' : 'h-12'}`}
             onClick={() => navigate('/')}
           />
         </div>
-
-        <nav className='flex-1 justify-between'>
+        <nav className='flex-1 justify-between laptop:flex hidden'>
           <Menu mode='horizontal' items={menuItems} className='w-full justify-center bg-transparent font-semibold uppercase tracking-wider' style={{ border: 'none', minWidth: '400px' }} />
         </nav>
 
@@ -379,8 +475,8 @@ const AppHeader: React.FC = () => {
             prefix={<SearchOutlined className='text-gray-400' />}
             suffix={
               <Space>
-                <AudioOutlined className='hover:text-red-600 cursor-pointer text-lg' onClick={startVoiceSearch} />
-                <CameraOutlined className='hover:text-red-600 cursor-pointer text-lg' onClick={() => setIsCameraModalOpen(true)} />
+                <AudioOutlined className='text-gray-700 hover:text-[#ee4d2d] cursor-pointer text-lg transition-colors' onClick={startVoiceSearch} />
+                <CameraOutlined className='text-gray-700 hover:text-[#ee4d2d] cursor-pointer text-lg transition-colors' onClick={() => setIsCameraModalOpen(true)} />
               </Space>
             }
             className='hidden lg:flex w-64 rounded-full bg-gray-100 border-none h-10 hover:bg-gray-200 transition-all'
@@ -393,7 +489,9 @@ const AppHeader: React.FC = () => {
           </Popover>
 
           <Dropdown menu={{ items: profileItems }} placement='bottomRight' arrow>
-            <Avatar icon={<UserOutlined />} className='bg-black cursor-pointer ml-2 rounded-full w-7 h-7 flex items-center justify-center overflow-hidden hover:ring-2 hover:ring-gray-300 transition-all' />
+            <div className={`flex items-center justify-center cursor-pointer transition-all ml-3 text-gray-700 hover:text-[#ee4d2d] ${isLoggedIn ? 'w-[30px] h-[30px] rounded-full border-2 border-gray-700 hover:border-[#ee4d2d]' : 'px-3 py-1 font-medium text-base'}`}>
+              {isLoggedIn ? <UserOutlined className='text-base' /> : <span>Guest</span>}
+            </div>
           </Dropdown>
         </div>
       </header>
@@ -526,9 +624,8 @@ const AppHeader: React.FC = () => {
       </Modal>
 
       <Drawer title='DANH MỤC' placement='left' onClose={() => setMobileMenuOpen(false)} open={mobileMenuOpen}>
-        <Menu mode='inline' items={menuItems} className='border-none font-medium' />
+        <Menu mode='inline' items={mobileMenuItems} className='border-none font-medium' />
       </Drawer>
-
       <div className='h-[80px]'></div>
     </>
   );

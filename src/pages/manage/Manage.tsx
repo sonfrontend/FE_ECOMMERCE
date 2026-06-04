@@ -4,8 +4,9 @@ import { UserOutlined, ArrowLeftOutlined, KeyOutlined, ShoppingCartOutlined } fr
 import type { MenuProps } from 'antd';
 import { Link } from 'react-router-dom';
 import AccountManage from './AccountManage';
-import RoleManage from './RoleManage/RoleManage';
-import OrderManage from '../Order/OrderManage';
+import RoleManage from '../admin/RoleManage/RoleManage';
+import OrderManage from '../admin/OrderManage';
+import OrderHistory from '../Order/OrderHistory';
 
 const { Sider, Content } = Layout;
 const { Title } = Typography;
@@ -16,9 +17,7 @@ export default function Manager() {
   // Menu items config
   const menuItems: MenuProps['items'] = [
     { key: '1', icon: <UserOutlined />, label: 'Quản lý tài khoản' },
-    { key: '2', icon: <KeyOutlined />, label: 'Quản lý phân quyền' },
-    { key: '3', icon: <ShoppingCartOutlined />, label: 'Quản lý đơn hàng' },
-    { type: 'divider' },
+    { key: '2', icon: <ShoppingCartOutlined />, label: 'Quản lý đơn hàng' },
     { key: 'back', icon: <ArrowLeftOutlined />, label: <Link to='/'>Về trang chủ</Link> }
   ];
 
@@ -47,8 +46,12 @@ export default function Manager() {
         <Content className='bg-transparent'>
           {/* TAB 1: Quản lý tài khoản */}
           {activeTab === '1' && <AccountManage />}
-          {activeTab === '2' && <RoleManage />}
-          {activeTab === '3' && <OrderManage />}
+          {/* TAB 2: Quản lý đơn hàng */}
+          {activeTab === '2' && (
+            <div className='-mt-8 -mx-4'>
+              <OrderHistory />
+            </div>
+          )}
         </Content>
       </Layout>
     </Layout>

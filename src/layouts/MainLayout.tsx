@@ -2,7 +2,7 @@ import React from 'react';
 import { Layout } from 'antd';
 import { Outlet } from 'react-router-dom';
 import AppHeader from '../components/Header/Header';
-import AppFooter from '../components/Footer/Footer';
+import Footer from './components/Footer';
 
 const { Content } = Layout;
 
@@ -41,7 +41,8 @@ const MainLayout = () => {
         </Content>
 
         {/* Advanced Footer */}
-        <AppFooter />
+              <Footer />
+
       </Layout>
     </>
   );

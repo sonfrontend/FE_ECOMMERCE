@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Skeleton, message, Spin, Dropdown, Select } from 'antd';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import type { MenuProps } from 'antd';
 import { HeartOutlined, HeartFilled } from '@ant-design/icons';
 
@@ -30,6 +30,7 @@ interface Category {
 
 const ProductGrid: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -59,12 +60,12 @@ const ProductGrid: React.FC = () => {
       setPage(1);
       setProducts([]);
     }
-  }, [searchParams]);
+  }, [searchParams, activeTab, selectedCategory]);
 
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | undefined>(undefined);
+  const [sortOrder, setSortOrder] = useState<string | undefined>('newest');
   
   // Favorites state
   const [favorites, setFavorites] = useState<string[]>(getFavorites());
@@ -140,7 +141,14 @@ const ProductGrid: React.FC = () => {
           }
           
           if (sortOrder) {
-            url += `&sortPrice=${sortOrder}`;
+            let backendSort = '';
+            if (sortOrder === 'asc') backendSort = 'price_asc';
+            else if (sortOrder === 'desc') backendSort = 'price_desc';
+            else if (sortOrder === 'best_selling') backendSort = 'best_selling';
+            
+            if (backendSort) {
+              url += `&sortBy=${backendSort}`;
+            }
           }
 
           const res = await http.get(url);
@@ -183,6 +191,14 @@ const ProductGrid: React.FC = () => {
   const handleToggleFav = (e: React.MouseEvent, articleId: string) => {
     e.preventDefault(); // Ngăn Link redirect
     e.stopPropagation();
+    
+    // Kiểm tra đăng nhập
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
     toggleFavorite(articleId);
     setFavorites(getFavorites());
   };
@@ -211,12 +227,12 @@ const ProductGrid: React.FC = () => {
           {/* Nút Yêu thích (Trái tim) */}
           <div 
             className='absolute top-2 right-2 bg-white/80 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer shadow-sm hover:bg-white transition-all z-10'
-            onClick={(e) => handleToggleFav(e, product.articleId)}
+            onClick={(e) => handleToggleFav(e, product.articleId || (product as any).productId)}
           >
-            {favorites.includes(product.articleId) ? (
-              <HeartFilled className='text-[#ee4d2d] text-lg' />
+            {favorites.includes(product.articleId || (product as any).productId) ? (
+              <HeartFilled className='text-blue-500 text-lg' />
             ) : (
-              <HeartOutlined className='text-gray-500 text-lg hover:text-[#ee4d2d]' />
+              <HeartOutlined className='text-gray-500 text-lg hover:text-blue-500' />
             )}
           </div>
         </div>
@@ -303,25 +319,41 @@ const ProductGrid: React.FC = () => {
               <Button
                 type={activeTab === 'favorite' ? 'primary' : 'default'}
                 className={`rounded-sm px-6 h-9 font-medium border-none ${ activeTab === 'favorite'
-                    ? 'bg-[#ee4d2d] text-white hover:!bg-[#ee4d2d]/90'
-                    : 'bg-gray-100 text-gray-700 hover:text-[#ee4d2d]'
+                    ? 'bg-blue-500 text-white hover:!bg-blue-600'
+                    : 'bg-gray-100 text-gray-700 hover:text-blue-500'
                 }`}
                 onClick={() => handleTabChange('favorite')}
               >
                 Yêu thích
               </Button>
-               <span className='text-gray-600 mr-2 whitespace-nowrap'>Sắp xếp theo</span>
-            <Select
-              placeholder='Giá'
-              value={sortOrder || undefined}
-              onChange={(val) => setSortOrder(val)}
-              allowClear
-              className='w-40 h-8'
-              options={[
-                { value: 'asc', label: 'Giá: Thấp đến Cao' },
-                { value: 'desc', label: 'Giá: Cao đến Thấp' }
-              ]}
-            />
+               <div className="flex gap-2 items-center">
+                 <Button 
+                   type={sortOrder === 'newest' ? 'primary' : 'default'} 
+                   onClick={() => {setSortOrder('newest'); setPage(1); setProducts([]);}} 
+                   className={sortOrder === 'newest' ? 'bg-[#ee4d2d] border-[#ee4d2d]' : ''}
+                 >
+                   Mới nhất
+                 </Button>
+                 <Button 
+                   type={sortOrder === 'best_selling' ? 'primary' : 'default'} 
+                   onClick={() => {setSortOrder('best_selling'); setPage(1); setProducts([]);}} 
+                   className={sortOrder === 'best_selling' ? 'bg-[#ee4d2d] border-[#ee4d2d]' : ''}
+                 >
+                   Bán chạy
+                 </Button>
+                 <span className='text-gray-600 mr-2 whitespace-nowrap ml-4'>Sắp xếp theo</span>
+                 <Select
+                   placeholder='Giá'
+                   value={['asc', 'desc'].includes(sortOrder as string) ? sortOrder : undefined}
+                   onChange={(val) => {setSortOrder(val); setPage(1); setProducts([]);}}
+                   allowClear
+                   className='w-40 h-8'
+                   options={[
+                     { value: 'asc', label: 'Giá: Thấp đến Cao' },
+                     { value: 'desc', label: 'Giá: Cao đến Thấp' }
+                   ]}
+                 />
+               </div>
             </div>
            
           </div>

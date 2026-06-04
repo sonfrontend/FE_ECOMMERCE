@@ -1,13 +1,37 @@
 import React from 'react';
 import HeroBanner from '@/components/Banner/HeroBanner';
 import ProductGrid from '@/components/Product/ProductGrid';
+import CategoryCarousel from '@/components/Category/CategoryCarousel';
+import FlashSale from '@/components/Product/FlashSale';
+import ProductRecommendation from '@/components/Product/ProductRecommendation';
 
 const Home: React.FC = () => {
   return (
-    <>
+    <div className="bg-gray-100 min-h-screen">
+      {/* Slider / Khuyến mãi */}
       <HeroBanner />
-      <ProductGrid />
-    </>
+      
+      {/* Khu vực Danh mục */}
+      <div className="max-w-7xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
+        <CategoryCarousel />
+      </div>
+
+      {/* Khu vực Flash Sale */}
+      <div className="max-w-7xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
+        <FlashSale />
+      </div>
+
+      {/* Khu vực Danh sách Sản phẩm */}
+      {/* <div className="max-w-7xl mx-auto mt-4 px-4 sm:px-6 lg:px-8 pb-8">
+        <ProductGrid />
+      </div> */}
+
+      {/* Khu vực Gợi ý Sản phẩm (AI) */}
+      <div className="max-w-7xl mx-auto mt-4 px-4 sm:px-6 lg:px-8 pb-8">
+        <ProductRecommendation />
+      </div>
+      
+    </div>
   );
 };
 
