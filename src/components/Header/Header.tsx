@@ -34,9 +34,15 @@ import {
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import type { UploadFile } from 'antd/es/upload/interface';
+import { getImageUrl } from '@/utils/imageUrl';
 import hmLogo from '@/assets/images/logos/Logo.png';
 import http from '@/apis/http';
 import { ItemType, MenuItemType } from 'antd/es/menu/interface';
+import { BellOutlined } from '@ant-design/icons';
+import { notificationService, Notification } from '@/services/notification.service';
+import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
+import dayjs from 'dayjs';
+import 'dayjs/locale/vi';
 
 interface Category {
   id: number;
@@ -73,6 +79,10 @@ const AppHeader: React.FC = () => {
   // --- STATES GIỎ HÀNG ---
   const [cartItems, setCartItems] = useState<any[]>([]);
 
+  // --- STATES THÔNG BÁO ---
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+
   // --- THÔNG TIN ĐĂNG NHẬP ---
   const userInfoStr = localStorage.getItem('userInfo');
   const userInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
@@ -97,6 +107,101 @@ const AppHeader: React.FC = () => {
     window.addEventListener('cart-updated', handleCartUpdate);
     return () => window.removeEventListener('cart-updated', handleCartUpdate);
   }, []);
+
+  // ====================================================================
+  // LOGIC: LẤY DỮ LIỆU THÔNG BÁO VÀ SIGNALR
+  // ====================================================================
+  const fetchNotifications = async () => {
+    try {
+      if (!isLoggedIn) return;
+      const data = await notificationService.getMyNotifications();
+      setNotifications(data);
+    } catch (error) {
+      console.log('Error fetching notifications:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    fetchNotifications();
+
+    // Khởi tạo SignalR connection
+    const connection = new HubConnectionBuilder()
+      .withUrl('http://localhost:5000/notificationHub', {
+        accessTokenFactory: () => localStorage.getItem('accessToken') || ''
+      })
+      .configureLogging(LogLevel.Information)
+      .withAutomaticReconnect()
+      .build();
+
+    connection.start()
+      .then(() => {
+        if (userInfo && userInfo.id) {
+          connection.invoke('JoinUserGroup', userInfo.id);
+        }
+      })
+      .catch(err => console.error('SignalR Connection Error: ', err));
+
+    connection.on('ReceiveNotification', (notif: Notification) => {
+      setNotifications(prev => [notif, ...prev]);
+      message.info(`Bạn có thông báo mới: ${notif.title}`);
+    });
+
+    return () => {
+      connection.stop();
+    };
+  }, [isLoggedIn, userInfo?.id]);
+
+  const handleMarkAsRead = async (id: number) => {
+    try {
+      await notificationService.markAsRead(id);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    } catch (error) {
+      console.log('Error marking as read:', error);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await notificationService.markAllAsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    } catch (error) {
+      console.log('Error marking all as read:', error);
+    }
+  };
+
+  const notificationContent = (
+    <div className='w-80 max-h-96 flex flex-col'>
+      <div className='flex justify-between items-center mb-2 px-2'>
+        <Text strong>Thông báo mới nhận</Text>
+        <Button type='link' size='small' onClick={handleMarkAllAsRead}>Đánh dấu đã đọc</Button>
+      </div>
+      <div className='overflow-y-auto flex-1'>
+        <List
+          itemLayout='horizontal'
+          dataSource={notifications}
+          renderItem={(item) => (
+            <List.Item 
+              className={`cursor-pointer px-3 py-2 border-b border-gray-100 hover:bg-gray-50 transition-colors ${!item.isRead ? 'bg-blue-50/30' : ''}`}
+              onClick={() => handleMarkAsRead(item.id)}
+            >
+              <List.Item.Meta
+                title={<Text className={!item.isRead ? 'font-semibold' : 'text-gray-600'} ellipsis>{item.title}</Text>}
+                description={
+                  <div className='flex flex-col'>
+                    <Text className='text-xs text-gray-500 line-clamp-2'>{item.message}</Text>
+                    <Text className='text-[10px] text-gray-400 mt-1'>{dayjs(item.createdAt).locale('vi').format('HH:mm DD/MM/YYYY')}</Text>
+                  </div>
+                }
+              />
+              {!item.isRead && <div className='w-2 h-2 rounded-full bg-blue-500 ml-2' />}
+            </List.Item>
+          )}
+          locale={{ emptyText: 'Chưa có thông báo nào' }}
+        />
+      </div>
+    </div>
+  );
 
   const handleUpdateQuantity = async (id: number, quantity: number | null) => {
     if (!quantity || quantity < 1) return;
@@ -403,7 +508,7 @@ const AppHeader: React.FC = () => {
               <List.Item.Meta
                 avatar={
                   <img
-                    src={'http://localhost:5000/' + item.product.imageUrl}
+                    src={getImageUrl(item.product.imageUrl)}
                     alt={item.product.productName}
                     className='w-10 h-10 object-cover border border-gray-200 cursor-pointer'
                     onClick={() => navigate(`/product/${item.product.productCode}`)}
@@ -487,6 +592,14 @@ const AppHeader: React.FC = () => {
               <Button type='text' icon={<ShoppingCartOutlined className='text-2xl text-gray-700 hover:text-[#ee4d2d] transition-colors' />} className='p-0 hover:bg-transparent' onClick={() => navigate('/cart')} />
             </Badge>
           </Popover>
+
+          {isLoggedIn && (
+            <Popover content={notificationContent} placement='bottomRight' trigger='click' arrow={false} overlayInnerStyle={{ padding: '8px 0' }}>
+              <Badge count={unreadCount} size='small' color='#ee4d2d' offset={[-2, 5]}>
+                <Button type='text' icon={<BellOutlined className='text-2xl text-gray-700 hover:text-[#ee4d2d] transition-colors' />} className='p-0 hover:bg-transparent ml-2' />
+              </Badge>
+            </Popover>
+          )}
 
           <Dropdown menu={{ items: profileItems }} placement='bottomRight' arrow>
             <div className={`flex items-center justify-center cursor-pointer transition-all ml-3 text-gray-700 hover:text-[#ee4d2d] ${isLoggedIn ? 'w-[30px] h-[30px] rounded-full border-2 border-gray-700 hover:border-[#ee4d2d]' : 'px-3 py-1 font-medium text-base'}`}>

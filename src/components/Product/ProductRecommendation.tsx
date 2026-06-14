@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Typography, Spin } from 'antd';
 import http from '@/apis/http';
 import { useNavigate } from 'react-router-dom';
+import { getImageUrl } from '@/utils/imageUrl';
 
 const { Title, Text } = Typography;
 
@@ -74,7 +75,7 @@ const ProductRecommendation: React.FC = () => {
             >
               <div className="relative w-full aspect-square bg-gray-50 overflow-hidden">
                 <img 
-                  src={product.imageUrl?.startsWith('http') ? product.imageUrl : `http://localhost:5000${product.imageUrl}`}
+                  src={product.imageUrl?.startsWith('http') ? product.imageUrl : getImageUrl(product.imageUrl)}
                   alt={product.productName}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />

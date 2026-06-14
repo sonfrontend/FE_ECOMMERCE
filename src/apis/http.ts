@@ -94,9 +94,9 @@ class Http {
             return Promise.reject(refreshError);
           }
         }
-        // Xử lý lỗi 404
+        // Xử lý lỗi 404 (Không redirect vì làm hỏng SPA nếu gọi API lỗi)
         else if (error.response?.status === HttpStatusCode.NotFound) {
-          window.location.href = '/404';
+          // window.location.href = '/404';
         }
 
         return Promise.reject(error);

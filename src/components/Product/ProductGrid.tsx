@@ -7,6 +7,7 @@ import { HeartOutlined, HeartFilled } from '@ant-design/icons';
 import http from '@/apis/http';
 import { getAIHistory } from '@/utils/aiHistory';
 import { getFavorites, toggleFavorite } from '@/utils/favorite';
+import { getImageUrl } from '@/utils/imageUrl';
 
 const { Text } = Typography;
 
@@ -221,7 +222,7 @@ const ProductGrid: React.FC = () => {
         <div className='relative w-full aspect-[3/4] overflow-hidden bg-[#f5f5f5]'>
           <img
             alt={product.productName}
-            src={'http://localhost:5000/images/' + product.imageUrl}
+            src={product.imageUrl?.startsWith('http') ? product.imageUrl : getImageUrl('/images/' + product.imageUrl)}
             className='absolute inset-0 w-full h-full object-cover'
           />
           {/* Nút Yêu thích (Trái tim) */}

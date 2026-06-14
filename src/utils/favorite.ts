@@ -1,4 +1,4 @@
-import { toggleFavoriteApi } from '@/apis/favoriteApi';
+import http from '@/apis/http';
 
 export const getFavorites = (): string[] => {
   try {
@@ -36,7 +36,7 @@ export const toggleFavorite = (articleId: string): boolean => {
   }
 
   // Gọi API nền để lưu vào DB (Nếu đã đăng nhập)
-  toggleFavoriteApi(articleId).catch(() => {
+  http.post('/api/Favorite', { articleId }).catch(() => {
     // Silently ignore if not logged in
   });
 

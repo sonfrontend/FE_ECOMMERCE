@@ -6,7 +6,9 @@ import {
   KeyOutlined, 
   ShoppingCartOutlined, 
   AppstoreOutlined,
-  ArrowLeftOutlined 
+  ArrowLeftOutlined,
+  DollarOutlined,
+  MessageOutlined
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
@@ -23,7 +25,12 @@ export default function AdminLayout() {
     if (path.includes('/admin/users')) return 'users';
     if (path.includes('/admin/roles')) return 'roles';
     if (path.includes('/admin/orders')) return 'orders';
+    if (path.includes('/admin/vouchers')) return 'vouchers';
     if (path.includes('/admin/products')) return 'products';
+    if (path.includes('/admin/payments')) return 'payments';
+    if (path.includes('/admin/wallets')) return 'wallets';
+    if (path.includes('/admin/shipping-fees')) return 'shipping-fees';
+    if (path.includes('/admin/chat')) return 'chat';
     return 'dashboard';
   };
 
@@ -35,6 +42,11 @@ export default function AdminLayout() {
     { key: 'roles', icon: <KeyOutlined />, label: 'Quản lý phân quyền' },
     { key: 'products', icon: <AppstoreOutlined />, label: 'Quản lý sản phẩm' },
     { key: 'orders', icon: <ShoppingCartOutlined />, label: 'Quản lý đơn hàng' },
+    { key: 'vouchers', icon: <DollarOutlined />, label: 'Quản lý Voucher' },
+    { key: 'payments', icon: <DollarOutlined />, label: 'Quản lý thanh toán' },
+    { key: 'wallets', icon: <DollarOutlined />, label: 'Dòng tiền VNPAY' },
+    { key: 'shipping-fees', icon: <ShoppingCartOutlined />, label: 'Quản lý phí ship' },
+    { key: 'chat', icon: <MessageOutlined />, label: 'Hỗ trợ khách hàng' },
     { type: 'divider' as const },
     { key: 'back', icon: <ArrowLeftOutlined />, label: 'Về trang bán hàng' }
   ];

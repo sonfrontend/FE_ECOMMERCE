@@ -7,6 +7,8 @@ import AccountManage from './AccountManage';
 import RoleManage from '../admin/RoleManage/RoleManage';
 import OrderManage from '../admin/OrderManage';
 import OrderHistory from '../Order/OrderHistory';
+import UserVoucherManage from './UserVoucherManage';
+import { GiftOutlined } from '@ant-design/icons';
 
 const { Sider, Content } = Layout;
 const { Title } = Typography;
@@ -18,6 +20,7 @@ export default function Manager() {
   const menuItems: MenuProps['items'] = [
     { key: '1', icon: <UserOutlined />, label: 'Quản lý tài khoản' },
     { key: '2', icon: <ShoppingCartOutlined />, label: 'Quản lý đơn hàng' },
+    { key: '3', icon: <GiftOutlined />, label: 'Quản lý voucher' },
     { key: 'back', icon: <ArrowLeftOutlined />, label: <Link to='/'>Về trang chủ</Link> }
   ];
 
@@ -52,6 +55,8 @@ export default function Manager() {
               <OrderHistory />
             </div>
           )}
+          {/* TAB 3: Quản lý voucher */}
+          {activeTab === '3' && <UserVoucherManage setActiveTab={setActiveTab} />}
         </Content>
       </Layout>
     </Layout>

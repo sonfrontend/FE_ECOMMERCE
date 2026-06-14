@@ -56,21 +56,6 @@ const Footer: React.FC = () => {
                 <FacebookOutlined className="text-lg" /> Facebook
               </Link>
             </li>
-            <li>
-              <Link href="#" className="text-gray-500 hover:text-[#ee4d2d] flex items-center gap-2">
-                <InstagramOutlined className="text-lg" /> Instagram
-              </Link>
-            </li>
-            <li>
-              <Link href="#" className="text-gray-500 hover:text-[#ee4d2d] flex items-center gap-2">
-                <TwitterOutlined className="text-lg" /> Twitter
-              </Link>
-            </li>
-            <li>
-              <Link href="#" className="text-gray-500 hover:text-[#ee4d2d] flex items-center gap-2">
-                <YoutubeOutlined className="text-lg" /> Youtube
-              </Link>
-            </li>
           </ul>
         </Col>
       </Row>

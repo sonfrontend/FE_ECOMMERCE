@@ -1,13 +1,14 @@
 import React from 'react';
 import HeroBanner from '@/components/Banner/HeroBanner';
-import ProductGrid from '@/components/Product/ProductGrid';
 import CategoryCarousel from '@/components/Category/CategoryCarousel';
 import FlashSale from '@/components/Product/FlashSale';
 import ProductRecommendation from '@/components/Product/ProductRecommendation';
+import PromoPopup from '@/components/Home/PromoPopup';
 
 const Home: React.FC = () => {
   return (
     <div className="bg-gray-100 min-h-screen">
+      <PromoPopup />
       {/* Slider / Khuyến mãi */}
       <HeroBanner />
       

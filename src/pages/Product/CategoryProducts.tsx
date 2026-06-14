@@ -4,9 +4,8 @@ import type { UploadFile } from 'antd/es/upload/interface';
 import { Link, useParams, useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { HeartOutlined, HeartFilled, RightOutlined, DownOutlined, SearchOutlined, PictureOutlined, AudioOutlined, CameraOutlined, DeleteOutlined, InboxOutlined, CloseOutlined } from '@ant-design/icons';
 import http from '@/apis/http';
-import { getProducts } from '@/apis/product.api';
-import { getCategories } from '@/apis/category.api';
 import { getFavorites, toggleFavorite } from '@/utils/favorite';
+import { getImageUrl } from '@/utils/imageUrl';
 
 const { Text } = Typography;
 
@@ -70,7 +69,7 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
     if (!type && !price) {
       const newParams = new URLSearchParams(searchParams);
       newParams.set('type', 'new');
-      setSearchParams(newParams, { replace: true });
+      setSearchParams(newParams, { replace: true, state: location.state });
       return;
     }
   }, [searchParams, setSearchParams]);
@@ -78,7 +77,7 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
   const handleFilterChange = (filterType: string) => {
     const newParams = new URLSearchParams(searchParams);
     newParams.set('type', filterType);
-    setSearchParams(newParams);
+    setSearchParams(newParams, { state: location.state });
   };
 
   const handlePriceChange = (val: string | undefined) => {
@@ -90,7 +89,7 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
     } else if (val === 'price_asc') {
       newParams.set('price', 'ins');
     }
-    setSearchParams(newParams);
+    setSearchParams(newParams, { state: location.state });
   };
   const [transcript, setTranscript] = useState('');
   
@@ -106,26 +105,41 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
   const location = useLocation();
   const isImageSearch = mode === 'search' && searchParams.get('image') === 'true';
   const queryParam = searchParams.get('q');
+
+  console.log(products);
+  
   
   // Initialize keyword if in search mode and clear local overrides on route change
   useEffect(() => {
+    // Only initialize from location.state if we just navigated here via an image search link
     if (mode === 'search' && isImageSearch && location.state?.activeSearchImage) {
       setHasFilteredImageSearch(true);
       setActiveSearchImage(location.state.activeSearchImage);
-    } else {
-      setHasFilteredImageSearch(false);
-      setActiveSearchImage(null);
-      setLocalImageProducts([]);
+      if (location.state?.products) {
+        setLocalImageProducts(location.state.products);
+      }
+    } else if (location.pathname !== '/search' || (!hasFilteredImageSearch && !isImageSearch)) {
+      // Only clear if we navigated away, OR if we aren't currently doing a local image search
+      // We removed the aggressive else block to avoid wiping local image search when searchParams change.
     }
     
     if (mode === 'search' && queryParam) {
       setKeyword(queryParam);
       setLocalSearchKeyword(queryParam);
-    } else {
+    } else if (!hasFilteredImageSearch) {
       setKeyword('');
       setLocalSearchKeyword('');
     }
   }, [mode, queryParam, location.pathname, isImageSearch, location.state]);
+
+  // Handle clearing local image search when navigating to a completely different category
+  useEffect(() => {
+    if (mode === 'category') {
+      setHasFilteredImageSearch(false);
+      setActiveSearchImage(null);
+      setLocalImageProducts([]);
+    }
+  }, [location.pathname]);
 
   const [favorites, setFavorites] = useState<string[]>(getFavorites());
 
@@ -133,7 +147,8 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
   useEffect(() => {
     const fetchCats = async () => {
       try {
-        const res = await getCategories();
+        const res = await http.get('/api/Category');
+        // const res = await getCategories();
         const cats: Category[] = res.data;
         if (mode === 'category' && id) {
           const currentParent = cats.find(c => c.id.toString() === id);
@@ -186,10 +201,10 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
       else setLoadingMore(true);
 
       if (isImageSearch) {
-        const imageProducts = location.state?.products || [];
+        const imageProducts = location.state?.products || localImageProducts || [];
         let sorted = [...imageProducts];
-        if (currentPrice === 'ins') sorted.sort((a,b) => (a.price || 0) - (b.price || 0));
-        else if (currentPrice === 'des') sorted.sort((a,b) => (b.price || 0) - (a.price || 0));
+        if (currentPrice === 'ins') sorted.sort((a,b) => (a.currentPrice || a.price || 0) - (b.currentPrice || b.price || 0));
+        else if (currentPrice === 'des') sorted.sort((a,b) => (b.currentPrice || b.price || 0) - (a.currentPrice || a.price || 0));
         setProducts(sorted);
         setTotalItems(sorted.length);
       } else if (hasFilteredImageSearch) {
@@ -228,15 +243,17 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
           let backendSortBy = '';
           if (currentType === 'bestselling') backendSortBy = 'best_selling';
           
-          const res = await getProducts({ 
-            categoryId: categoryIdToFetch, 
-            keyword: mode === 'search' ? (keyword || queryParam || undefined) : keyword, 
-            sortBy: backendSortBy,
-            sortPrice: currentPrice || undefined,
-            page: pageNum, 
-            pageSize,
-            isFlashSale: mode === 'flash-sale'
-          } as any);
+          const res = await http.get('/api/Product', { 
+            params: {
+              categoryId: categoryIdToFetch, 
+              keyword: mode === 'search' ? (keyword || queryParam || undefined) : keyword, 
+              sortBy: backendSortBy,
+              sortPrice: currentPrice || undefined,
+              page: pageNum, 
+              pageSize,
+              isFlashSale: mode === 'flash-sale'
+            }
+          });
           
           if (isNew) {
             setProducts(res.data.items || []);
@@ -400,20 +417,6 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
 
       let aiProducts = res.data.data;
 
-      // Lọc kết quả nằm TRONG category hiện tại (nếu đang ở trang Category)
-      if (mode === 'category' && id) {
-        // Lấy tất cả ID của danh mục hiện tại và các danh mục con
-        const validCategoryIds = new Set<number>();
-        validCategoryIds.add(Number(id));
-        subCategories.forEach(sub => {
-          validCategoryIds.add(sub.id);
-          sub.subCategories?.forEach(leaf => validCategoryIds.add(leaf.id));
-        });
-        
-        // Lọc
-        aiProducts = aiProducts.filter((p: any) => validCategoryIds.has(p.categoryId) || validCategoryIds.has(p.CategoryId));
-      }
-
       const base64 = await getBase64(fileToUpload as File);
       setActiveSearchImage(base64);
 
@@ -446,7 +449,7 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
         <div className='relative w-full aspect-[3/4] overflow-hidden bg-[#f5f5f5]'>
           <img
             alt={product.productName}
-            src={product.imageUrl?.startsWith('http') ? product.imageUrl : `http://localhost:5000${product.imageUrl?.startsWith('/') ? '' : '/'}${product.imageUrl}`}
+            src={product.imageUrl?.startsWith('http') ? product.imageUrl : getImageUrl(product.imageUrl)}
             className='absolute inset-0 w-full h-full object-cover'
             onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/300x400?text=No+Image' }}
           />

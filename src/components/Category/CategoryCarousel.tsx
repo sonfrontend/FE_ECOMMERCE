@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Typography, Spin } from 'antd';
 import http from '@/apis/http';
 import { useNavigate } from 'react-router-dom';
+import { getImageUrl } from '@/utils/imageUrl';
 
 const { Title, Text } = Typography;
 
@@ -77,7 +78,7 @@ const CategoryCarousel: React.FC = () => {
                 <div className="w-28 h-16 md:w-40 md:h-24 bg-gray-50 rounded-xl flex items-center justify-center mb-3 shadow-sm border border-gray-100 overflow-hidden transition-transform group-hover:scale-105">
                   {cat.iconUrl || cat.IconUrl ? (
                     <img 
-                      src={`http://localhost:5000/images/categories/${cat.iconUrl}`} 
+                      src={getImageUrl(`${cat.iconUrl}`)} 
                       alt={cat.name || cat.Name} 
                       className="w-full h-full object-cover"
                     />

@@ -1,14 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Select, message, Typography, Button, Space, Tag } from 'antd';
+import { Table, message, Typography, Button, Space, Tag, Tabs, Select, Modal, Input } from 'antd';
 import { CheckCircleOutlined } from '@ant-design/icons';
 import http from '@/apis/http';
-
+import { getStatusColor, getStatusText } from '@/utils/getStatus';
+import { jwtDecode } from 'jwt-decode';
 const { Title } = Typography;
 const { Option } = Select;
 
 const OrderManage: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>('All');
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  
+  const [isProposeModalVisible, setIsProposeModalVisible] = useState(false);
+  const [proposingOrderId, setProposingOrderId] = useState<number | null>(null);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
+  const [resolutionNote, setResolutionNote] = useState('');
 
   const fetchOrders = async () => {
     try {
@@ -21,9 +30,48 @@ const OrderManage: React.FC = () => {
     }
   };
 
+  const fetchTemplates = async () => {
+    try {
+      const res = await http.get('/api/dispute/resolution-templates');
+      setTemplates(res.data);
+    } catch (error) {
+      console.log('Error fetching templates', error);
+    }
+  };
+
   useEffect(() => {
     fetchOrders();
+    fetchTemplates();
+    
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      try {
+        const decoded: any = jwtDecode(token);
+        setCurrentUserId(decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] || decoded.sub || '');
+      } catch (err) { }
+    }
   }, []);
+
+  const handleProposeResolution = async () => {
+    if (!proposingOrderId || !selectedTemplate) {
+      message.error('Vui lòng chọn mẫu lý do');
+      return;
+    }
+    try {
+      await http.post(`/api/dispute/${proposingOrderId}/propose-resolution`, {
+        templateId: selectedTemplate,
+        note: resolutionNote
+      });
+      message.success('Đã đưa ra đề xuất giải quyết');
+      setIsProposeModalVisible(false);
+      setProposingOrderId(null);
+      setSelectedTemplate(null);
+      setResolutionNote('');
+      fetchOrders();
+    } catch (error: any) {
+      message.error('Lỗi: ' + error?.response?.data);
+    }
+  };
 
   const handleStatusChange = async (orderId: number, newStatus: string) => {
     try {
@@ -37,31 +85,17 @@ const OrderManage: React.FC = () => {
 
   const statusOptions = ['PendingPayment', 'Pending', 'Processing', 'Shipped', 'Completed', 'Cancelled', 'Refunded'];
 
-  const getStatusText = (status: string, paymentMethod: string) => {
+
+
+  const getNextStatusAction = (status: string) => {
     switch(status) {
-      case 'PendingPayment': return 'Đã đặt mà chưa thanh toán';
-      case 'Pending': return paymentMethod === 'COD' ? 'Đã đặt' : 'Đã đặt và thanh toán rồi';
-      case 'Processing': return 'Nhận đơn và chuẩn bị đồ để giao';
-      case 'Shipped': return 'Đang giao';
-      case 'Completed': return paymentMethod === 'COD' ? 'Đã nhận và thanh toán - hoàn thành' : 'Đã nhận - hoàn thành';
-      case 'Cancelled': return 'Đã hủy';
-      case 'Refunded': return 'Hoàn tiền';
-      default: return status;
+      case 'PendingPayment': return { next: 'Pending', label: 'Xác nhận đã thanh toán', color: '#faad14' };
+      case 'Pending': return { next: 'Processing', label: 'Duyệt đơn', color: '#1890ff' };
+      case 'Processing': return { next: 'Shipped', label: 'Giao hàng', color: '#13c2c2' };
+      case 'Shipped': return { next: 'Delivered', label: 'Đã giao', color: '#52c41a' };
+      default: return null;
     }
   };
-
-  const getStatusColor = (status: string) => {
-    switch(status) {
-      case 'PendingPayment': return 'orange';
-      case 'Pending': return 'gold';
-      case 'Processing': return 'blue';
-      case 'Shipped': return 'cyan';
-      case 'Completed': return 'green';
-      case 'Cancelled': return 'red';
-      case 'Refunded': return 'magenta';
-      default: return 'default';
-    }
-  }
 
   const columns = [
     {
@@ -99,41 +133,94 @@ const OrderManage: React.FC = () => {
     {
       title: 'Trạng thái',
       key: 'status',
-      render: (_: any, record: any) => (
-        <Space direction="vertical" size="small">
-          <Tag color={getStatusColor(record.status)}>{getStatusText(record.status, record.paymentMethod)}</Tag>
-          
-          <Select value={record.status} style={{ width: 250 }} onChange={(val) => handleStatusChange(record.id, val)}>
-            {statusOptions.map((s) => (
-              <Option key={s} value={s}>
-                {getStatusText(s, record.paymentMethod)}
-              </Option>
-            ))}
-          </Select>
+      render: (_: any, record: any) => {
+        return (
+          <Space direction="vertical" size="small">
+            <Tag color={getStatusColor(record.status)}>{getStatusText(record.status, record.paymentMethod)}</Tag>
+          </Space>
+        )
+      }
+    },
+    {
+      title: 'Hành động',
+      key: 'action',
+      render: (_: any, record: any) => {
+        const action = getNextStatusAction(record.status);
+        return (
+          <Space direction="vertical" size="small">
+            {action && (
+              <Button 
+                type="primary" 
+                size="small" 
+                icon={<CheckCircleOutlined />} 
+                style={{ background: action.color, borderColor: action.color }}
+                onClick={() => handleStatusChange(record.id, action.next)}
+              >
+                {action.label}
+              </Button>
+            )}
 
-          {record.status === 'Pending' && (
-            <Button 
-              type="primary" 
-              size="small" 
-              icon={<CheckCircleOutlined />} 
-              style={{ background: '#52c41a', borderColor: '#52c41a' }}
-              onClick={() => handleStatusChange(record.id, 'Processing')}
-            >
-              Duyệt đơn
-            </Button>
-          )}
-        </Space>
-      )
+            {(record.status === 'PendingPayment' || record.status === 'Pending') && (
+              <Button 
+                danger
+                size="small" 
+                type="text"
+                onClick={() => handleStatusChange(record.id, 'Cancelled')}
+              >
+                Hủy đơn
+              </Button>
+            )}
+
+              {(record.status === 'Disputed') && (
+              <Button 
+                type="primary"
+                size="small" 
+                onClick={() => {
+                  setProposingOrderId(record.id);
+                  setIsProposeModalVisible(true);
+                }}
+              >
+                Đưa ra quyết định giải quyết
+              </Button>
+            )}
+            
+            {(record.status === 'PendingResolution') && (
+              <Tag color="orange" className='m-0'>Chờ User xác nhận</Tag>
+            )}
+          </Space>
+        )
+      }
     }
   ];
 
+  const tabItems = [
+    { key: 'All', label: 'Tất cả' },
+    { key: 'Pending', label: 'Chờ xác nhận' },
+    { key: 'Processing', label: 'Đang chuẩn bị' },
+    { key: 'Shipped', label: 'Đang giao' },
+    { key: 'Delivered', label: 'Đã giao' },
+    { key: 'Completed', label: 'Hoàn thành' },
+    { key: 'Cancelled', label: 'Đã hủy' },
+    { key: 'Disputed', label: 'Đã hoàn tiền/Tranh chấp' },
+  ];
+
+  const filteredOrders = activeTab === 'All' ? orders : orders.filter(o => o.status === activeTab);
+
   return (
     <div className='bg-white p-6 rounded-lg shadow-sm w-full h-full'>
-      <Title level={3} className='mb-6'>
+      <Title level={3} className='mb-4'>
         Quản lý Đơn Hàng
       </Title>
+      
+      <Tabs 
+        activeKey={activeTab} 
+        onChange={setActiveTab} 
+        items={tabItems}
+        className="mb-4"
+      />
+
       <Table
-        dataSource={orders}
+        dataSource={filteredOrders}
         columns={columns}
         rowKey='id'
         loading={loading}
@@ -161,10 +248,64 @@ const OrderManage: React.FC = () => {
                   </li>
                 ))}
               </ul>
+              
+              {(record.status === 'Disputed' || record.status === 'PendingResolution') && (
+                <div className='mt-4 p-4 bg-white border border-gray-200 rounded-lg'>
+                  <h4 className='font-bold mb-2'>Thảo luận giải quyết tranh chấp</h4>
+                  {record.status === 'PendingResolution' && (
+                    <div className='mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded'>
+                      <span className='font-semibold'>Quyết định đã đưa ra:</span>
+                      <p className='mt-1 text-gray-900 font-medium'>{record.resolutionTemplateTitle}</p>
+                      {record.resolutionNote && <p className='mt-1 text-gray-700'>Ghi chú: {record.resolutionNote}</p>}
+                      <small className='text-gray-500'>Đang chờ người dùng xác nhận. Sẽ tự động hoàn tất sau 3 ngày.</small>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )
         }}
       />
+      
+      <Modal
+        title="Đưa ra quyết định giải quyết tranh chấp"
+        open={isProposeModalVisible}
+        onCancel={() => setIsProposeModalVisible(false)}
+        onOk={handleProposeResolution}
+        okText="Gửi đề xuất"
+        cancelText="Hủy"
+      >
+        <div className="mb-4">
+          <label className="block mb-2 font-medium">Chọn lý do giải quyết <span className="text-red-500">*</span></label>
+          <Select 
+            style={{ width: '100%' }} 
+            placeholder="-- Chọn lý do --"
+            value={selectedTemplate}
+            onChange={setSelectedTemplate}
+          >
+            {templates.map(t => (
+              <Option key={t.id} value={t.id}>{t.title}</Option>
+            ))}
+          </Select>
+          
+          {selectedTemplate && (
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded">
+              <span className="font-semibold block mb-1">Cách xử lý hệ thống đề xuất:</span>
+              <span>{templates.find(t => t.id === selectedTemplate)?.handlingMethod}</span>
+            </div>
+          )}
+        </div>
+        
+        <div>
+          <label className="block mb-2 font-medium">Ghi chú thêm (Tùy chọn)</label>
+          <Input.TextArea 
+            rows={4} 
+            value={resolutionNote} 
+            onChange={e => setResolutionNote(e.target.value)} 
+            placeholder="Ghi chú chi tiết thêm cho người dùng hiểu..."
+          />
+        </div>
+      </Modal>
     </div>
   );
 };

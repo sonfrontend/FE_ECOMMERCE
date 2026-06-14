@@ -7,7 +7,7 @@ export default function ProtectedRoute({ role }: { role?: string }) {
   if(role && role.includes('Admin')) {
     const userInfoStr = localStorage.getItem('userInfo');
   const userInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
-  const isAdmin = userInfo?.role === 'Admin';
+  const isAdmin = userInfo?.roles?.includes('Admin');
   if (!isAdmin) {
     return <Navigate to='' replace />;
   }

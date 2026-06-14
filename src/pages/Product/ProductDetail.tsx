@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Breadcrumb, Button, Skeleton, message, Image } from 'antd';
-import { ShoppingCartOutlined, RightOutlined, LeftOutlined, HeartOutlined, HeartFilled, StarFilled, ClockCircleOutlined } from '@ant-design/icons';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Breadcrumb, Button, Skeleton, message, Image, Rate, Avatar, Modal } from 'antd';
+import { ShoppingCartOutlined, RightOutlined, LeftOutlined, HeartOutlined, HeartFilled, StarFilled, ClockCircleOutlined, UserOutlined, MessageOutlined } from '@ant-design/icons';
 import http from '@/apis/http';
 import { addAIHistory } from '@/utils/aiHistory';
-import { toggleFavoriteApi, getMyFavoritesApi } from '@/apis/favoriteApi';
+import { getImageUrl } from '@/utils/imageUrl';
 
 interface ProductVariant {
   articleId: string;
+  variantId?: number;
   size: string;
   color: string;
   stockQuantity: number;
@@ -44,6 +45,7 @@ interface ProductDetailData {
 
 const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [product, setProduct] = useState<ProductDetailData | null>(null);
   const [fbtProducts, setFbtProducts] = useState<any[]>([]);
   const [fbtLoading, setFbtLoading] = useState(false);
@@ -55,6 +57,7 @@ const ProductDetail: React.FC = () => {
   const [mainImage, setMainImage] = useState<string>('');
   const [isFav, setIsFav] = useState<boolean>(false);
   const [startIndex, setStartIndex] = useState(0);
+  const [isSizeGuideVisible, setIsSizeGuideVisible] = useState(false);
 
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const [isFlashSaleActive, setIsFlashSaleActive] = useState(false);
@@ -114,13 +117,16 @@ const ProductDetail: React.FC = () => {
         setProduct(res.data);
 
         if (res.data) {
-          setMainImage(res.data.imageUrl);
-          setSelectedColor(res.data.color);
-          setSelectedSize(res.data.size);
+          const allVars = [res.data, ...(res.data.products || [])];
+          const availableVar = allVars.find(v => v.stockQuantity > 0) || res.data;
+
+          setMainImage(availableVar.imageUrl || res.data.imageUrl);
+          setSelectedColor(availableVar.color);
+          setSelectedSize(availableVar.size);
           
           // Check if favorited by calling API
           try {
-            const favRes = await getMyFavoritesApi();
+            const favRes = await http.get<string[]>('/api/Favorite/my-favorites');
             if (favRes.data.includes(res.data.articleId)) {
               setIsFav(true);
             }
@@ -158,6 +164,33 @@ const ProductDetail: React.FC = () => {
 
     if (id) {
       fetchFBT();
+    }
+  }, [id]);
+
+  // --- REVIEWS STATE & FETCH ---
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsData, setReviewsData] = useState<{totalReviews: number, averageRating: number}>({ totalReviews: 0, averageRating: 0 });
+
+  useEffect(() => {
+    const fetchReviews = async () => {
+      setReviewsLoading(true);
+      try {
+        const res = await http.get(`/api/Review/product/${id}`);
+        setReviews(res.data.reviews || []);
+        setReviewsData({
+          totalReviews: res.data.totalReviews || 0,
+          averageRating: res.data.averageRating || 0
+        });
+      } catch (error) {
+        console.error('Failed to fetch reviews', error);
+      } finally {
+        setReviewsLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchReviews();
     }
   }, [id]);
 
@@ -248,6 +281,7 @@ const ProductDetail: React.FC = () => {
     try {
       await http.post('/api/Cart', {
         articleId: currentVariant.articleId,
+        variantId: currentVariant.variantId,
         quantity: quantity
       });
       message.success(`Đã thêm ${quantity} sản phẩm vào giỏ hàng`);
@@ -258,19 +292,57 @@ const ProductDetail: React.FC = () => {
       addAIHistory(currentVariant.articleId);
       console.log('AI History: Added to cart', currentVariant.articleId);
       
-    } catch (error) {
+    } catch (error: any) {
       message.error(error.message || 'Vui lòng đăng nhập để thêm vào giỏ hàng!');
+    }
+  };
+
+  const handleBuyNow = async () => {
+    if (!currentVariant) {
+      message.error('Vui lòng chọn phân loại hàng');
+      return;
+    }
+
+    try {
+      // 1. Thêm vào giỏ hàng
+      await http.post('/api/Cart', {
+        articleId: currentVariant.articleId,
+        variantId: currentVariant.variantId,
+        quantity: quantity
+      });
+      
+      window.dispatchEvent(new Event('cart-updated'));
+      addAIHistory(currentVariant.articleId);
+
+      // 2. Lấy danh sách giỏ hàng để tìm ID của item vừa được thêm
+      const cartRes = await http.get('/api/Cart');
+      
+      // Tìm item vừa thêm dựa trên id và phân loại
+      const addedItem = cartRes.data.find((item: any) => 
+        item.product.articleId === currentVariant.articleId &&
+        item.product.color === currentVariant.color &&
+        item.product.size === currentVariant.size
+      );
+
+      if (addedItem) {
+        navigate('/checkout', { state: { selectedRowKeys: [addedItem.id] } });
+      } else {
+        message.error('Lỗi khi chuẩn bị đơn hàng');
+      }
+    } catch (error: any) {
+      message.error(error.message || 'Vui lòng đăng nhập để mua hàng!');
     }
   };
 
   const handleToggleFav = async () => {
     if (product) {
       try {
-        const res = await toggleFavoriteApi(product.articleId);
+       
+        const res = await http.post(`/api/Favorite/toggle/${product.articleId}`);
         setIsFav(res.data.isFavorited);
         setProduct(prev => prev ? { ...prev, favoriteCount: res.data.favoriteCount } : null);
         message.success(res.data.message);
-      } catch (error) {
+      } catch (error: any) {
         message.error(error.message || 'Vui lòng đăng nhập để thao tác');
       }
     }
@@ -355,7 +427,7 @@ const ProductDetail: React.FC = () => {
           <div className='w-[400px] flex flex-col shrink-0 p-4'>
             <div className='w-full h-[400px] bg-gray-50 relative cursor-pointer border border-gray-100 mb-4 flex justify-center items-center overflow-hidden'>
               <Image
-                src={'http://localhost:5000' + (mainImage || product.imageUrl)}
+                src={getImageUrl(mainImage || product.imageUrl)}
                 alt={product.productName}
                 className='object-contain'
                 style={{ maxWidth: '400px', maxHeight: '400px' }}
@@ -375,7 +447,7 @@ const ProductDetail: React.FC = () => {
                       onMouseEnter={() => setMainImage(img)}
                     >
                       <img
-                        src={'http://localhost:5000' + img}
+                        src={getImageUrl(img)}
                         alt='thumbnail'
                         className='w-full h-full object-cover'
                       />
@@ -396,23 +468,33 @@ const ProductDetail: React.FC = () => {
             <h1 className='text-[22px] font-medium text-gray-900 leading-snug mb-2'>{product.productName}</h1>
 
             <div className='flex items-center gap-4 text-[14px] mb-4 text-gray-600'>
-              <div className='flex items-center gap-1 text-[#ee4d2d]'>
-                <span className='underline font-medium border-b border-[#ee4d2d] leading-none pb-0.5'>{product.rating || '4.9'}</span>
-                <div className='flex text-[#ee4d2d]'>
-                  {[...Array(5)].map((_, i) => <StarFilled key={i} className='text-[12px]' />)}
+              {reviewsData.totalReviews > 0 ? (
+                <>
+                  <div className='flex items-center gap-1 text-[#ee4d2d]'>
+                    <span className='underline font-medium border-b border-[#ee4d2d] leading-none pb-0.5'>
+                      {Number(reviewsData.averageRating).toFixed(1)}
+                    </span>
+                    <div className='flex text-[#ee4d2d]'>
+                      {[...Array(5)].map((_, i) => <StarFilled key={i} className='text-[12px]' />)}
+                    </div>
+                  </div>
+                  <div className='w-[1px] h-[14px] bg-gray-300'></div>
+                  <div className='flex items-center gap-1'>
+                    <span className='underline font-medium text-gray-900'>{reviewsData.totalReviews}</span> Đánh Giá
+                  </div>
+                </>
+              ) : (
+                <div className='flex items-center gap-1 text-gray-500'>
+                  Chưa đánh giá
                 </div>
-              </div>
+              )}
               <div className='w-[1px] h-[14px] bg-gray-300'></div>
               <div className='flex items-center gap-1'>
-                <span className='underline font-medium text-gray-900'>{product.reviewCount || '1.2k'}</span> Đánh Giá
-              </div>
-              <div className='w-[1px] h-[14px] bg-gray-300'></div>
-              <div className='flex items-center gap-1'>
-                <span className='text-gray-900 font-medium'>{product.soldQuantity || '3.5k'}</span> Đã Bán
+                <span className='text-gray-900 font-medium'>{product.soldQuantity || 0}</span> Đã Bán
               </div>
               <div className='w-[1px] h-[14px] bg-gray-300'></div>
               <div className='flex items-center gap-1 text-gray-500'>
-                <HeartFilled className='text-gray-400' /> Đã thích ({product.favoriteCount !== undefined ? product.favoriteCount : 0})
+                <HeartFilled className={product.favoriteCount && product.favoriteCount > 0 ? 'text-[#ee4d2d]' : 'text-gray-400'} /> Đã thích ({product.favoriteCount !== undefined ? product.favoriteCount : 0})
               </div>
             </div>
 
@@ -488,7 +570,7 @@ const ProductDetail: React.FC = () => {
                         >
                           {variantImg && (
                             <img
-                              src={'http://localhost:5000' + variantImg}
+                              src={getImageUrl(variantImg)}
                               className='w-6 h-6 object-cover border border-gray-100'
                               alt={color}
                             />
@@ -505,7 +587,15 @@ const ProductDetail: React.FC = () => {
               {/* Chọn Kích Cỡ */}
               {sizes.length > 0 && (
                 <div className='flex items-start'>
-                  <div className='w-[110px] text-gray-500 mt-2 shrink-0 capitalize'>Kích cỡ</div>
+                  <div className='w-[110px] text-gray-500 mt-2 shrink-0 capitalize flex flex-col gap-1'>
+                    Kích cỡ
+                    <button 
+                      onClick={() => setIsSizeGuideVisible(true)}
+                      className="text-left text-[#ee4d2d] hover:underline text-[13px] bg-transparent border-none cursor-pointer p-0"
+                    >
+                      Bảng size
+                    </button>
+                  </div>
                   <div className='flex flex-wrap gap-2 flex-1'>
                     {sizes.map((size) => {
                       const matchingVariants = selectedColor ? allVariants.filter(v => v.color === selectedColor && v.size === size) : allVariants.filter(v => v.size === size);
@@ -562,7 +652,7 @@ const ProductDetail: React.FC = () => {
               </div>
             </div>
 
-            {/* Các Nút Hành Động (Được đẩy xuống đáy bằng mt-auto và có khoảng cách chuẩn) */}
+            {/* Các Nút Hành Động */}
             <div className='flex items-center gap-4 mt-auto pt-6 border-t border-gray-100'>
               <Button
                 size='large'
@@ -574,9 +664,32 @@ const ProductDetail: React.FC = () => {
               </Button>
               <Button
                 size='large'
-                className='h-[48px] min-w-[180px] rounded-sm bg-[#ee4d2d] text-white border-none font-medium text-[15px] hover:!bg-[#f05d40] hover:!text-white shadow-sm'
+                className='h-[48px] px-8 rounded-sm bg-[#ee4d2d] text-white font-medium text-[15px] hover:!bg-[#f05d40] hover:!text-white border-none shadow-sm'
+                onClick={handleBuyNow}
               >
                 Mua Ngay
+              </Button>
+              <Button
+                size='large'
+                icon={<MessageOutlined className='text-[20px]' />}
+                className='h-[48px] px-6 rounded-sm border-gray-300 bg-white text-gray-700 font-medium text-[15px] hover:!border-[#ee4d2d] hover:!text-[#ee4d2d] shadow-none flex items-center gap-2'
+                onClick={() => {
+                  const url = window.location.origin + `/product/${product.articleId}`;
+                  window.dispatchEvent(new CustomEvent('share-to-chat', { 
+                    detail: { 
+                      productUrl: url,
+                      product: {
+                        id: product.articleId,
+                        name: product.productName,
+                        price: displayPrice,
+                        originalPrice: displayOriginalPrice,
+                        image: mainImage || product.imageUrl
+                      }
+                    } 
+                  }));
+                }}
+              >
+                Nhắn tin
               </Button>
               <Button
                 size='large'
@@ -602,12 +715,12 @@ const ProductDetail: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <div className='grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4'>
+              <div className='grid grid-cols-6 md:grid-cols-4 lg:grid-cols-5 gap-4'>
                 {fbtProducts.map((p) => (
                   <Link to={`/product/${p.articleId}`} key={p.articleId} className='block group'>
                     <div className='bg-white border border-gray-100 hover:border-[#ee4d2d] hover:-translate-y-1 hover:shadow-md transition-all duration-300 rounded-sm overflow-hidden relative'>
                       <div className='aspect-[3/4] overflow-hidden bg-gray-50'>
-                        <img src={p.imageUrl} alt={p.productName} className='w-full h-full object-cover group-hover:scale-105 transition-transform duration-300' />
+                        <img src={getImageUrl(p.imageUrl)} alt={p.productName} className='w-full h-full object-cover group-hover:scale-105 transition-transform duration-300' />
                       </div>
                       <div className='p-3'>
                         <div className='text-sm text-gray-800 line-clamp-2 min-h-[40px] group-hover:text-[#ee4d2d] transition-colors'>{p.productName}</div>
@@ -631,7 +744,70 @@ const ProductDetail: React.FC = () => {
             )}
           </div>
         )}
+
+        {/* ========================================================================= */}
+        {/* ĐÁNH GIÁ SẢN PHẨM                                                         */}
+        {/* ========================================================================= */}
+        <div className='mt-4 bg-white shadow-sm rounded-sm p-6 mb-8'>
+          <div className='text-lg font-medium text-gray-800 mb-6 uppercase'>Đánh giá sản phẩm</div>
+
+          {reviewsLoading ? (
+            <Skeleton active paragraph={{ rows: 3 }} />
+          ) : (
+            <>
+              {/* Tổng quan đánh giá */}
+              <div className='flex items-center gap-8 bg-[#fffbf8] border border-[#f9ede5] p-6 rounded-sm mb-6'>
+                <div className='flex flex-col items-center justify-center'>
+                  <div className='text-[#ee4d2d] text-3xl font-medium'>
+                    <span className='text-[1.5rem]'>{reviewsData.averageRating}</span> / 5
+                  </div>
+                  <Rate disabled value={reviewsData.averageRating} allowHalf className='text-[#ee4d2d] text-lg mt-1' />
+                </div>
+                <div className='text-gray-600'>
+                  Đã có {reviewsData.totalReviews} đánh giá
+                </div>
+              </div>
+
+              {/* Danh sách bình luận */}
+              {reviews.length === 0 ? (
+                <div className='text-center text-gray-500 py-8'>Chưa có đánh giá nào cho sản phẩm này.</div>
+              ) : (
+                <div className='flex flex-col'>
+                  {reviews.map((review) => (
+                    <div key={review.id} className='flex gap-4 py-4 border-b border-gray-100 last:border-0'>
+                      <Avatar src={review.avatarUrl} icon={<UserOutlined />} className='w-10 h-10 shrink-0' />
+                      <div className='flex flex-col flex-1'>
+                        <div className='font-medium text-[13px] text-gray-800'>{review.userName}</div>
+                        <Rate disabled value={review.rating} className='text-[#ee4d2d] text-[12px] my-1' />
+                        <div className='text-gray-400 text-[12px] mb-3'>
+                          {new Date(review.createdAt).toLocaleString('vi-VN')}
+                        </div>
+                        <div className='text-[14px] text-gray-800 whitespace-pre-wrap'>{review.comment}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
       </div>
+      <Modal
+        title="Hướng dẫn chọn size"
+        open={isSizeGuideVisible}
+        onCancel={() => setIsSizeGuideVisible(false)}
+        footer={null}
+        width={800}
+        centered
+      >
+        <div className="flex flex-col gap-4">
+          <div className="text-center font-medium">Bảng Size Nam</div>
+          <img src="https://res.cloudinary.com/dss8hptah/image/upload/v1/size_nam.png" alt="Size Nam" className="w-full rounded-md border border-gray-200" />
+          <div className="text-center font-medium mt-4">Bảng Size Nữ</div>
+          <img src="https://res.cloudinary.com/dss8hptah/image/upload/v1/size_nu.png" alt="Size Nữ" className="w-full rounded-md border border-gray-200" />
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Table, Button, Space, Typography, Popconfirm, message, Modal, Form, Input, InputNumber, PaginationProps, Select } from 'antd';
 import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import http from '@/apis/http';
+import { getImageUrl } from '@/utils/imageUrl';
 
 const { Title } = Typography;
 
@@ -136,7 +137,7 @@ export default function ProductManage() {
       title: 'Hình ảnh',
       dataIndex: 'imageUrl',
       key: 'imageUrl',
-      render: (url: string) => url ? <img src={`${import.meta.env.VITE_API_ENDPOINT}/images/${url}`} alt="product" className="w-12 h-12 object-cover rounded" /> : 'N/A'
+      render: (url: string) => url ? <img src={getImageUrl('/images/' + url)} alt="product" className="w-12 h-12 object-cover rounded" /> : 'N/A'
     },
     {
       title: 'Tên sản phẩm',

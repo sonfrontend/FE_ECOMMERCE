@@ -1,9 +1,11 @@
 import { Button, Flex, Form, Input } from 'antd';
 import { Link } from 'react-router-dom';
-import { GoogleLogin } from '@react-oauth/google';
 import { useState } from 'react';
 import http from '@/apis/http';
 import { toast } from 'react-toastify';
+import { signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider } from '@/config/firebase';
+import { GoogleOutlined } from '@ant-design/icons';
 
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -38,13 +40,16 @@ const Login = () => {
   //   console.log('Failed:', errorInfo);
   // };
 
-  const handleGoogleSuccess = async (credentialResponse) => {
-    // 1. Rút cái ID Token từ Google trả về
-    const googleIdToken = credentialResponse.credential;
-    console.log(googleIdToken);
-
+  const handleGoogleLogin = async () => {
     try {
-      // 2. Ném thẳng Token này xuống API C# của bạn
+      // 1. Mở popup đăng nhập Google của Firebase
+      const result = await signInWithPopup(auth, googleProvider);
+      
+      // 2. Rút cái ID Token từ Firebase trả về
+      const googleIdToken = await result.user.getIdToken();
+      console.log(googleIdToken);
+
+      // 3. Ném thẳng Token này xuống API C# của bạn
       const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/api/Auth/google-login`, {
         method: 'POST',
         headers: {
@@ -64,7 +69,8 @@ const Login = () => {
         alert('Lỗi từ C#: ' + data.message);
       }
     } catch (error) {
-      console.log('Lỗi gọi API:', error);
+      console.log('Lỗi đăng nhập Google Firebase:', error);
+      toast.error('Đăng nhập Google thất bại');
     }
   };
 
@@ -110,12 +116,15 @@ const Login = () => {
         </Flex>
       </Form.Item>
       <Form.Item className='mb-2!'>
-        <GoogleLogin
-          onSuccess={handleGoogleSuccess}
-          onError={() => {
-            console.log('Đăng nhập Google thất bại');
-          }}
-        />
+        <Button 
+          block 
+          icon={<GoogleOutlined />} 
+          size="large" 
+          onClick={handleGoogleLogin}
+          className="flex items-center justify-center font-medium"
+        >
+          Tiếp tục với Google
+        </Button>
       </Form.Item>
     </Form>
   );

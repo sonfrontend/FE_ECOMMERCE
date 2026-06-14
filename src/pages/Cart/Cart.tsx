@@ -8,10 +8,11 @@ import { useNavigate } from 'react-router-dom';
 import http from '@/apis/http';
 
 // BẮT BUỘC: Nhớ đảm bảo file này nằm cùng thư mục với Cart.tsx
-import PayPalPaymentButton from './PayPalPaymentButton'; 
+// Removed PayPalPaymentButton import
 import { PaymentMethod } from '@/contants/PaymentMethod.enum';
 import OrderTimer from '../Order/OrderTimer';
 import { PayPalScriptProvider } from '@paypal/react-paypal-js';
+import { getImageUrl } from '@/utils/imageUrl';
 
 const { Title, Text } = Typography;
 
@@ -135,7 +136,7 @@ const Cart: React.FC = () => {
                             checked={selectedRowKeys.includes(item.id)}
                             onChange={(e) => setSelectedRowKeys(prev => e.target.checked ? [...prev, item.id] : prev.filter(key => key !== item.id))}
                           />
-                          <img src={`http://localhost:5000${item.product.imageUrl}`} alt="img" className='w-20 h-24 object-cover border' />
+                          <img src={getImageUrl(item.product.imageUrl)} alt="img" className='w-20 h-24 object-cover border' />
                         </div>
                       }
                       title={<Text className='text-base font-medium'>{item.product.productName}</Text>}

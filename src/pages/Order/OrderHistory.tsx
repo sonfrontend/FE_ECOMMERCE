@@ -1,23 +1,62 @@
 import React, { useEffect, useState } from 'react';
-import { Typography, List, Tag, Skeleton, message, Card, Flex, Button, Modal } from 'antd';
+import { Typography, List, Tag, Skeleton, message, Card, Flex, Button, Modal, Tabs, Rate, Input } from 'antd';
 import http from '@/apis/http';
 import { Link } from 'react-router-dom';
 import { OrderStatus } from '@/contants/OrderStatus.enum';
 import OrderTimer from './OrderTimer';
-
-// BẮT BUỘC IMPORT 2 THỨ NÀY ĐỂ MỞ CỔNG THANH TOÁN
-import { PayPalScriptProvider } from '@paypal/react-paypal-js';
-import PayPalPaymentButton from '../Cart/PayPalPaymentButton'; // Chỉnh lại đường dẫn tới file nút PayPal của bạn
-
+import { getStatusColor, getStatusText } from '@/utils/getStatus';
+import { jwtDecode } from 'jwt-decode';
+import { getImageUrl } from '@/utils/imageUrl';
 const { Title, Text } = Typography;
+const { TextArea } = Input;
 
 const OrderHistory: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('ALL');
+  const [currentUserId, setCurrentUserId] = useState<string>('');
 
-  // --- STATE QUẢN LÝ THANH TOÁN LẠI ---
-  const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
-  const [paymentOrder, setPaymentOrder] = useState<any>(null); // Lưu thông tin đơn hàng đang chọn để thanh toán
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      try {
+        const decoded: any = jwtDecode(token);
+        // The token usually has nameid or sub claim
+        setCurrentUserId(decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] || decoded.sub || '');
+      } catch (err) { }
+    }
+  }, []);
+
+
+  // --- STATE QUẢN LÝ ĐÁNH GIÁ SẢN PHẨM ---
+  const [isReviewModalVisible, setIsReviewModalVisible] = useState(false);
+  const [reviewItem, setReviewItem] = useState<{orderItem: any, order: any} | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  const handleSubmitReview = async () => {
+    if (!reviewItem) return;
+    try {
+      setIsSubmittingReview(true);
+      await http.post('/api/Review', {
+        productId: reviewItem.orderItem.articleId,
+        orderItemId: reviewItem.orderItem.id,
+        rating: reviewRating,
+        comment: reviewComment
+      });
+      message.success('Cảm ơn bạn đã đánh giá sản phẩm!');
+      setIsReviewModalVisible(false);
+      setReviewItem(null);
+      setReviewRating(5);
+      setReviewComment('');
+      fetchOrders(); // Refresh to update isReviewed flag
+    } catch (error: any) {
+      message.error(error?.response?.data || 'Không thể gửi đánh giá lúc này');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   // 1. TÁCH HÀM LẤY DATA RA NGOÀI ĐỂ CÓ THỂ GỌI LẠI BẤT CỨ LÚC NÀO
   const fetchOrders = async () => {
@@ -36,38 +75,35 @@ const OrderHistory: React.FC = () => {
     fetchOrders();
   }, []);
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case OrderStatus.PendingPayment.toLowerCase():
-      case OrderStatus.Pending.toLowerCase():
-        return 'orange';
-      case OrderStatus.Delivered.toLowerCase():
-        return 'green';
-      case OrderStatus.Cancelled.toLowerCase():
-        return 'red';
-      default:
-        return 'default';
-    }
-  };
 
-  const getStatusText = (status: string, paymentMethod: string) => {
-    switch (status.toLowerCase()) {
-      case OrderStatus.PendingPayment.toLowerCase():
-        return 'Đã đặt mà chưa thanh toán';
-      case OrderStatus.Pending.toLowerCase():
-        return paymentMethod === 'COD' ? 'Đã đặt' : 'Đã đặt và thanh toán rồi';
-      case OrderStatus.Processing.toLowerCase():
-        return 'Nhận đơn và chuẩn bị đồ để giao';
-      case OrderStatus.Shipped.toLowerCase():
-        return 'Đang giao';
-      case OrderStatus.Delivered.toLowerCase():
-        return paymentMethod === 'COD' ? 'Đã nhận và thanh toán - hoàn thành' : 'Đã nhận - hoàn thành';
-      case OrderStatus.Cancelled.toLowerCase():
-        return 'Đã hủy';
+  const filteredOrders = orders.filter(order => {
+    switch (activeTab) {
+      case 'PENDING':
+        return order.status === OrderStatus.PendingPayment || order.status === OrderStatus.Pending;
+      case 'PROCESSING':
+        return order.status === OrderStatus.Processing;
+      case 'DELIVERED':
+        return order.status === OrderStatus.Delivered || order.status === OrderStatus.Shipped;
+      case 'COMPLETED':
+        return order.status === OrderStatus.Completed;
+      case 'CANCELLED':
+        return order.status === OrderStatus.Cancelled;
+      case 'REFUNDED':
+        return order.status === OrderStatus.Disputed || order.status === OrderStatus.Refunded || order.status === OrderStatus.PendingResolution || order.status === OrderStatus.Resolved;
       default:
-        return status;
+        return true;
     }
-  };
+  });
+
+  const tabItems = [
+    { key: 'ALL', label: 'Tất cả' },
+    { key: 'PENDING', label: 'Chờ thanh toán' },
+    { key: 'PROCESSING', label: 'Vận chuyển' },
+    { key: 'DELIVERED', label: 'Chờ giao hàng' },
+    { key: 'COMPLETED', label: 'Hoàn thành' },
+    { key: 'CANCELLED', label: 'Đã hủy' },
+    { key: 'REFUNDED', label: 'Trả hàng/Hoàn tiền' }
+  ];
 
   if (loading && orders.length === 0) {
     return (
@@ -83,15 +119,25 @@ const OrderHistory: React.FC = () => {
         <Title level={2} className='mb-6'>
           Lịch sử mua hàng
         </Title>
-        {orders.length === 0 ? (
-          <div className='bg-white p-12 text-center shadow-sm'>
-            <Text className='text-gray-500 text-lg'>Bạn chưa có đơn hàng nào.</Text>
+        
+        <Tabs 
+          activeKey={activeTab} 
+          onChange={setActiveTab} 
+          items={tabItems}
+          className="bg-white !px-6 !py-2 !mb-4 shadow-sm rounded-lg"
+          tabBarStyle={{ marginBottom: 0 }}
+        />
+
+        {filteredOrders.length === 0 ? (
+          <div className='bg-white p-16 text-center shadow-sm rounded-lg flex flex-col items-center justify-center'>
+            <img src="https://deo.shopeemobile.com/shopee/shopee-pcmall-live-sg/orderlist/5fafbb923393b712b96488590b8f781f.png" alt="empty" className="w-28 mb-4 opacity-80" />
+            <Text className='text-gray-500 text-lg'>Chưa có đơn hàng</Text>
           </div>
         ) : (
-          <div className='flex flex-col gap-6'>
-            {orders.map((order) => (
-              <Card key={order.id} className='shadow-sm border-none' bodyStyle={{ padding: 0 }}>
-                <div className='border-b px-6 py-4 flex justify-between items-center bg-gray-50'>
+          <div className='flex flex-col gap-4'>
+            {filteredOrders.map((order) => (
+              <Card key={order.id} id={`order-${order.id}`} className='shadow-sm border border-gray-100 rounded-lg hover:shadow-md transition-shadow' bodyStyle={{ padding: 0 }}>
+                <div className='border-b border-gray-100 px-6 py-4 flex justify-between items-center bg-white'>
                   <Text className='font-semibold text-gray-800'>
                     Mã Đơn Hàng: #{order.id} | Ngày đặt: {new Date(order.orderDate).toLocaleString('vi-VN')}
                   </Text>
@@ -129,7 +175,7 @@ const OrderHistory: React.FC = () => {
                         <List.Item.Meta
                           avatar={
                             <img
-                              src={'http://localhost:5000' + item.imageUrl}
+                              src={getImageUrl(item.imageUrl)}
                               className='w-20 h-20 object-cover border border-gray-200'
                               alt='product'
                             />
@@ -141,8 +187,24 @@ const OrderHistory: React.FC = () => {
                           }
                           description={`Phân loại: ${item.color}, ${item.size} x ${item.quantity}`}
                         />
-                        <div className='text-[#ee4d2d] font-medium text-base'>
-                          ₫{new Intl.NumberFormat('vi-VN').format(item.unitPrice)}
+                        <div className='flex flex-col items-end gap-2'>
+                          <div className='text-[#ee4d2d] font-medium text-base'>
+                            ₫{new Intl.NumberFormat('vi-VN').format(item.unitPrice)}
+                          </div>
+                          {(order.status === OrderStatus.Completed) && (
+                            <Button 
+                              type={item.isReviewed ? 'default' : 'primary'}
+                              ghost={!item.isReviewed}
+                              disabled={item.isReviewed}
+                              size="small"
+                              onClick={() => {
+                                setReviewItem({ orderItem: item, order: order });
+                                setIsReviewModalVisible(true);
+                              }}
+                            >
+                              {item.isReviewed ? 'Đã đánh giá' : 'Đánh giá'}
+                            </Button>
+                          )}
                         </div>
                       </List.Item>
                     )}
@@ -150,7 +212,7 @@ const OrderHistory: React.FC = () => {
                 </div>
 
                 {/* TỔNG KẾT VÀ NÚT THANH TOÁN NGAY */}
-                <div className='bg-[#fffbf8] px-6 py-4 border-t flex justify-between items-center'>
+                <div className='bg-rose-50/30 px-6 py-5 flex justify-between items-end'>
                   <div>
                     <Text className='text-gray-500 mb-1 text-sm block'>
                       Giao đến: {order.recipientName} - {order.phoneNumber} ({order.shippingAddress})
@@ -166,11 +228,30 @@ const OrderHistory: React.FC = () => {
                   </div>
                   
                   <div className='flex flex-col items-end gap-3'>
-                    <div className='flex items-center gap-4'>
-                      <Text className='text-base font-medium'>Tổng số tiền:</Text>
-                      <Text className='text-[#ee4d2d] text-2xl font-bold'>
-                        ₫{new Intl.NumberFormat('vi-VN').format(order.totalAmount)}
+                    <div className='flex flex-col items-end gap-1'>
+                      <Text className='text-gray-500 text-sm'>
+                        Phí vận chuyển: ₫{new Intl.NumberFormat('vi-VN').format(order.shippingFee || 0)}
                       </Text>
+                      {order.voucherCode && (
+                        <Text className='text-green-600 text-sm'>
+                          Voucher ({order.voucherCode}): -₫{new Intl.NumberFormat('vi-VN').format(order.discountAmount || 0)}
+                        </Text>
+                      )}
+                      {!order.voucherCode && order.discountAmount > 0 && (
+                        <Text className='text-green-600 text-sm'>
+                          Giảm giá: -₫{new Intl.NumberFormat('vi-VN').format(order.discountAmount)}
+                        </Text>
+                      )}
+                      <div className='flex items-center gap-4 mt-1'>
+                        <Text className='text-base font-medium'>
+                          {order.status?.toLowerCase() === 'refunded' 
+                            ? 'Số tiền đã hoàn trả:' 
+                            : (order.isPaid ? 'Số tiền đã thanh toán:' : 'Tổng số tiền:')}
+                        </Text>
+                        <Text className='text-[#ee4d2d] text-2xl font-bold'>
+                          ₫{new Intl.NumberFormat('vi-VN').format(order.totalAmount)}
+                        </Text>
+                      </div>
                     </div>
 
                     {/* 3. NÚT THANH TOÁN NGAY DÀNH CHO ĐƠN HÀNG CÒN HẠN */}
@@ -179,51 +260,210 @@ const OrderHistory: React.FC = () => {
                         type="primary" 
                         size="large"
                         className="bg-[#ee4d2d] hover:bg-[#f05d40] border-none px-8 font-medium"
-                        onClick={() => {
-                          setPaymentOrder(order);
-                          setIsPaymentModalVisible(true);
+                        onClick={async () => {
+                          try {
+                            const res = await http.post('/api/Payment/vnpay-create', { InternalOrderId: order.id });
+                            if (res.data.url) {
+                              window.location.href = res.data.url;
+                            } else {
+                              message.error('Không lấy được link thanh toán');
+                            }
+                          } catch (error) {
+                            message.error('Lỗi khởi tạo thanh toán VNPAY');
+                          }
                         }}
                       >
                         Thanh toán ngay
                       </Button>
                     )}
+
+                    {/* NÚT HỦY ĐƠN */}
+                    {(order.status === OrderStatus.Pending || order.status === OrderStatus.PendingPayment) && (
+                      <Button 
+                        danger
+                        size="large"
+                        className="px-8 font-medium"
+                        onClick={() => {
+                          Modal.confirm({
+                            title: 'Xác nhận hủy đơn',
+                            content: order.isPaid ? 'Đơn hàng đã thanh toán. Bạn có chắc muốn hủy? Tiền sẽ được hoàn lại.' : 'Bạn có chắc chắn muốn hủy đơn hàng này?',
+                            okText: 'Đồng ý hủy',
+                            cancelText: 'Quay lại',
+                            onOk: async () => {
+                              try {
+                                const res = await http.put(`/api/Order/${order.id}/cancel`);
+                                message.success(res?.data?.message || 'Đã hủy đơn hàng');
+                                fetchOrders();
+                              } catch (error: any) {
+                                message.error(error?.response?.data || 'Có lỗi xảy ra');
+                              }
+                            }
+                          });
+                        }}
+                      >
+                        Hủy đơn hàng
+                      </Button>
+                    )}
+
+                    {/* NÚT ĐÃ NHẬN HÀNG VÀ HOÀN TIỀN */}
+                    {order.status === OrderStatus.Delivered && (
+                      <div className="flex gap-3">
+                        <Button 
+                          danger
+                          size="large"
+                          onClick={() => {
+                            Modal.confirm({
+                              title: 'Yêu cầu hoàn tiền',
+                              content: 'Bạn chưa nhận được hàng hoặc hàng bị lỗi? Admin sẽ liên hệ để xử lý hoàn tiền.',
+                              okText: 'Gửi yêu cầu',
+                              cancelText: 'Hủy',
+                              onOk: async () => {
+                                try {
+                                  const res = await http.put(`/api/Order/${order.id}/dispute`);
+                                  message.success(res?.data?.message || 'Đã gửi yêu cầu');
+                                  fetchOrders();
+                                } catch (error: any) {
+                                  message.error(error?.response?.data || 'Có lỗi xảy ra');
+                                }
+                              }
+                            });
+                          }}
+                        >
+                          Trả hàng/Hoàn tiền
+                        </Button>
+                        <Button 
+                          type="primary" 
+                          size="large"
+                          className="bg-[#ee4d2d] hover:bg-[#f05d40] border-none px-8 font-medium"
+                          onClick={() => {
+                            Modal.confirm({
+                              title: 'Xác nhận đã nhận hàng',
+                              content: 'Bạn xác nhận đã nhận được hàng và hàng hóa không có vấn đề gì?',
+                              okText: 'Đã nhận',
+                              cancelText: 'Hủy',
+                              onOk: async () => {
+                                try {
+                                  const res = await http.put(`/api/Order/${order.id}/confirm-received`);
+                                  message.success(res?.data?.message || 'Cảm ơn bạn đã mua sắm!');
+                                  fetchOrders();
+                                } catch (error: any) {
+                                  message.error(error?.response?.data || 'Có lỗi xảy ra');
+                                }
+                              }
+                            });
+                          }}
+                        >
+                          Đã nhận được hàng
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
+                
+                {/* HIỂN THỊ KHUNG CHAT KHI ĐANG TRANH CHẤP HOẶC CHỜ GIẢI QUYẾT */}
+                {(order.status === OrderStatus.Disputed || order.status === OrderStatus.PendingResolution) && (
+                  <div className='px-6 py-4 bg-gray-50 border-t'>
+                    {order.status === OrderStatus.PendingResolution && (
+                      <div className='mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg'>
+                        <h4 className='font-bold text-yellow-800 mb-2'>Quyết định giải quyết từ Quản trị viên:</h4>
+                        <div className='bg-white p-3 rounded mb-3 text-gray-700 whitespace-pre-wrap border'>
+                          <p className='font-semibold text-gray-900 mb-1'>Hướng giải quyết: {order.resolutionTemplateTitle}</p>
+                          {order.resolutionNote && (
+                            <p>Ghi chú thêm: {order.resolutionNote}</p>
+                          )}
+                        </div>
+                        <div className='flex gap-3'>
+                          <Button 
+                            type='primary' 
+                            className='bg-green-600 hover:bg-green-700 border-none'
+                            onClick={async () => {
+                              try {
+                                await http.post(`/api/dispute/${order.id}/reply-resolution`, { accept: true });
+                                message.success('Bạn đã đồng ý với phương án giải quyết');
+                                fetchOrders();
+                              } catch(e) {
+                                message.error('Lỗi khi gửi xác nhận');
+                              }
+                            }}
+                          >
+                            Đồng ý & Đóng khiếu nại
+                          </Button>
+                          <Button 
+                            danger 
+                            onClick={async () => {
+                              try {
+                                await http.post(`/api/dispute/${order.id}/reply-resolution`, { accept: false });
+                                message.success('Bạn không đồng ý. Tiếp tục khiếu nại.');
+                                fetchOrders();
+                              } catch(e) {
+                                message.error('Lỗi khi gửi từ chối');
+                              }
+                            }}
+                          >
+                            Không đồng ý (Tiếp tục khiếu nại)
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </Card>
             ))}
           </div>
         )}
 
+
         {/* ========================================================================= */}
-        {/* MODAL THANH TOÁN LẠI (TƯƠNG TỰ NHƯ Ở TRANG CART)                            */}
+        {/* MODAL ĐÁNH GIÁ SẢN PHẨM                                                   */}
         {/* ========================================================================= */}
         <Modal
-          title={<span className="text-lg font-bold text-gray-800">Thanh toán Đơn hàng #{paymentOrder?.id}</span>}
-          open={isPaymentModalVisible}
-          onCancel={() => setIsPaymentModalVisible(false)}
-          footer={null}
+          title={<span className="text-lg font-bold text-gray-800">Đánh giá sản phẩm</span>}
+          open={isReviewModalVisible}
+          onCancel={() => {
+            setIsReviewModalVisible(false);
+            setReviewItem(null);
+            setReviewRating(5);
+            setReviewComment('');
+          }}
+          onOk={handleSubmitReview}
+          okText="Gửi đánh giá"
+          cancelText="Hủy"
+          confirmLoading={isSubmittingReview}
           centered
           destroyOnClose
         >
-          {paymentOrder && (
-            <div className='flex flex-col items-center justify-center py-4'>
-              <div className='p-6 border border-gray-200 rounded-xl bg-white shadow-sm text-center w-full max-w-sm'>
-                <Text className='block mb-2 font-medium text-gray-600'>Tổng tiền cần thanh toán</Text>
-                <Text className='block text-3xl font-bold text-[#ee4d2d] mb-6'>
-                  ₫{new Intl.NumberFormat('vi-VN').format(paymentOrder.totalAmount)}
-                </Text>
-                
-                <div className="bg-gray-50 p-4 rounded-lg mb-4 flex justify-center w-full">
-                  <PayPalScriptProvider options={{ 
-                    clientId: "AeUy_yLBmbpd2uRXsO9dyn9zCCGzoegIVfbLB7UN1Ze2bxb2QdsDnr4-yvKL4fGgSg_vxp1yard3YvY8", 
-                    currency: "USD" 
-                  }}>
-                    <PayPalPaymentButton 
-                      orderId={paymentOrder.id.toString()} 
-                      amount={paymentOrder.totalAmount} 
-                    />
-                  </PayPalScriptProvider>
+          {reviewItem && (
+            <div className='flex flex-col gap-4 py-4'>
+              <div className='flex items-center gap-4 bg-gray-50 p-3 rounded-lg border border-gray-100'>
+                <img
+                  src={getImageUrl(reviewItem.orderItem.imageUrl)}
+                  className='w-16 h-16 object-cover rounded-md border border-gray-200'
+                  alt='product'
+                />
+                <div>
+                  <Text className='font-medium text-base block'>{reviewItem.orderItem.productName}</Text>
+                  <Text className='text-gray-500 text-sm'>Phân loại: {reviewItem.orderItem.color}, {reviewItem.orderItem.size}</Text>
                 </div>
+              </div>
+
+              <div className='flex flex-col items-center gap-2 mt-2'>
+                <Text className='font-medium'>Chất lượng sản phẩm</Text>
+                <Rate 
+                  className='text-3xl text-[#ee4d2d]' 
+                  value={reviewRating} 
+                  onChange={setReviewRating} 
+                />
+              </div>
+
+              <div className='mt-2'>
+                <Text className='font-medium mb-2 block'>Nhận xét của bạn</Text>
+                <TextArea
+                  rows={4}
+                  placeholder="Hãy chia sẻ những điều bạn thích về sản phẩm này nhé..."
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  maxLength={1000}
+                />
               </div>
             </div>
           )}

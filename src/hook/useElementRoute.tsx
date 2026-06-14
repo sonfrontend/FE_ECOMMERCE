@@ -16,6 +16,7 @@ const CategoryProducts = lazy(() => import('@/pages/Product/CategoryProducts'));
 const Cart = lazy(() => import('@/pages/Cart/Cart'));
 const Checkout = lazy(() => import('@/pages/Checkout/Checkout'));
 const OrderHistory = lazy(() => import('@/pages/Order/OrderHistory'));
+const VnpayReturn = lazy(() => import('@/pages/Payment/VnpayReturn'));
 
 // Admin Imports
 const AdminLayout = lazy(() => import('@/layouts/AdminLayout'));
@@ -24,6 +25,11 @@ const AdminProductManage = lazy(() => import('@/pages/admin/ProductManage'));
 const AdminUserManage = lazy(() => import('@/pages/admin/AdminUserManage'));
 const RoleManage = lazy(() => import('@/pages/admin/RoleManage/RoleManage'));
 const OrderManage = lazy(() => import('@/pages/admin/OrderManage'));
+const AdminPaymentManage = lazy(() => import('@/pages/admin/AdminPaymentManage'));
+const AdminWalletManage = lazy(() => import('@/pages/admin/AdminWalletManage'));
+const AdminVoucherManage = lazy(() => import('@/pages/admin/AdminVoucherManage'));
+const ShippingFeeManage = lazy(() => import('@/pages/admin/ShippingFeeManage'));
+const AdminChatManage = lazy(() => import('@/pages/admin/AdminChatManage'));
 
 export default function useRouteElements() {
   const routeElements = useRoutes([
@@ -87,6 +93,10 @@ export default function useRouteElements() {
             {
               path: 'history',
               element: <OrderHistory />
+            },
+            {
+              path: 'payment/vnpay-return',
+              element: <VnpayReturn />
             }
           ]
         }
@@ -119,6 +129,26 @@ export default function useRouteElements() {
             {
               path: 'orders',
               element: <OrderManage />
+            },
+            {
+              path: 'vouchers',
+              element: <AdminVoucherManage />
+            },
+            {
+              path: 'payments',
+              element: <AdminPaymentManage />
+            },
+            {
+              path: 'wallets',
+              element: <AdminWalletManage />
+            },
+            {
+              path: 'shipping-fees',
+              element: <ShippingFeeManage />
+            },
+            {
+              path: 'chat',
+              element: <AdminChatManage />
             }
           ]
         }

@@ -3,9 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Form, Input, Select, Checkbox, Radio, Space, Button, Typography, message, Skeleton, Modal } from 'antd';
 import http from '@/apis/http';
 import { PaymentMethod } from '@/contants/PaymentMethod.enum';
-import { PayPalScriptProvider } from '@paypal/react-paypal-js';
-import PayPalPaymentButton from '../Cart/PayPalPaymentButton';
-import OrderTimer from '../Order/OrderTimer';
+
 
 const { Title, Text } = Typography;
 
@@ -32,9 +30,21 @@ const Checkout: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shippingFee, setShippingFee] = useState<number>(0);
   
-  // State Modal Thanh toán Online
-  const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
-  const [createdOrderInfo, setCreatedOrderInfo] = useState<{ id: number; date: string; totalAmount: number } | null>(null);
+  // Voucher state
+  const [voucherCode, setVoucherCode] = useState<string>('');
+  const [appliedVoucher, setAppliedVoucher] = useState<string | null>(null);
+  const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [isValidatingVoucher, setIsValidatingVoucher] = useState(false);
+  
+  // Available vouchers & promotions
+  const [availableVouchers, setAvailableVouchers] = useState<any[]>([]);
+  const [activePromotion, setActivePromotion] = useState<any>(null);
+  const [isVoucherModalVisible, setIsVoucherModalVisible] = useState(false);
+
+  // Shipping fees state
+  const [shippingFeesList, setShippingFeesList] = useState<any[]>([]);
+
+
   
   // Lấy selectedRowKeys từ Router State
   const selectedRowKeys: number[] = location.state?.selectedRowKeys || [];
@@ -46,7 +56,46 @@ const Checkout: React.FC = () => {
       return;
     }
     fetchCartItems();
+    fetchActiveVouchers();
+    fetchActivePromotion();
+    fetchShippingFees();
   }, [selectedRowKeys, navigate]);
+
+  const fetchShippingFees = async () => {
+    try {
+      const res = await http.get('/api/ShippingFee');
+      setShippingFeesList(res.data);
+    } catch (error) {
+      console.error("Không thể tải danh sách phí vận chuyển", error);
+    }
+  };
+
+  const fetchActivePromotion = async () => {
+    try {
+      const res = await http.get('/api/Promotion/active');
+      if (res.data && res.data.length > 0) {
+        setActivePromotion(res.data[0]);
+      }
+    } catch (error) {
+      console.error("Không thể tải promotion", error);
+    }
+  };
+
+  const fetchActiveVouchers = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const voucherRes = await http.get('/api/Voucher/my-vouchers', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      if (voucherRes.data) {
+        setAvailableVouchers(voucherRes.data);
+      }
+    } catch (error) {
+      console.error("Không thể tải danh sách voucher", error);
+    }
+  };
 
   const fetchCartItems = async () => {
     try {
@@ -66,14 +115,54 @@ const Checkout: React.FC = () => {
     return cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
   };
 
+  const subtotal = calculateSubtotal();
+  
+  // Calculate final discount based on voucher OR promotion
+  let finalDiscountAmount = 0;
+  if (appliedVoucher) {
+    finalDiscountAmount = discountAmount;
+  } else if (activePromotion) {
+    finalDiscountAmount = subtotal * (activePromotion.discountPercentage / 100);
+  }
+
+  const total = subtotal + shippingFee - finalDiscountAmount;
+
   const handleProvinceChange = (value: string) => {
-    if (value === 'Hồ Chí Minh') {
-      setShippingFee(10000);
-    } else if (value) {
-      setShippingFee(25000);
+    const feeConfig = shippingFeesList.find(f => f.provinceName === value);
+    if (feeConfig) {
+      setShippingFee(feeConfig.fee);
     } else {
-      setShippingFee(0);
+      setShippingFee(0); // Default fee if not configured
     }
+  };
+
+  const handleApplyVoucher = async () => {
+    if (!voucherCode) return;
+    
+    try {
+      setIsValidatingVoucher(true);
+      const subtotal = calculateSubtotal();
+      
+      const res = await http.post('/api/Voucher/validate', {
+        code: voucherCode,
+        orderTotal: subtotal
+      });
+      
+      setDiscountAmount(res.data.discountAmount);
+      setAppliedVoucher(voucherCode);
+      message.success(res.data.message || 'Áp dụng mã giảm giá thành công!');
+    } catch (error: any) {
+      setDiscountAmount(0);
+      setAppliedVoucher(null);
+      message.error(error.response?.data || 'Mã giảm giá không hợp lệ');
+    } finally {
+      setIsValidatingVoucher(false);
+    }
+  };
+
+  const handleSelectVoucher = (code: string) => {
+    setVoucherCode(code);
+    setIsVoucherModalVisible(false);
   };
 
   const handleConfirmOrder = async (values: any) => {
@@ -88,16 +177,23 @@ const Checkout: React.FC = () => {
         shippingAddress: fullAddress,
         paymentMethod: values.paymentMethod,
         shippingFee: shippingFee,
-        selectedCartItemIds: selectedRowKeys 
+        voucherCode: appliedVoucher,
+        selectedCartItemIds: selectedRowKeys,
+        email: values.email 
       };
 
       const response = await http.post('/api/Order', payload);
       
       window.dispatchEvent(new Event('cart-updated'));
 
-      if (values.paymentMethod === PaymentMethod.PAYPAL) {
-        setCreatedOrderInfo({ id: response.data.orderId, date: response.data.orderDate, totalAmount: response.data.totalAmount });
-        setIsPaymentModalVisible(true);
+      if (values.paymentMethod === PaymentMethod.VNPAY) {
+        // Gọi API VNPay và chuyển hướng
+        const vnpayRes = await http.post('/api/Payment/vnpay-create', { InternalOrderId: response.data.orderId });
+        if (vnpayRes.data.url) {
+          window.location.href = vnpayRes.data.url;
+        } else {
+          message.error('Lỗi lấy link thanh toán VNPay');
+        }
       } else {
         message.success('Đặt hàng thành công!');
         navigate('/history');
@@ -113,9 +209,6 @@ const Checkout: React.FC = () => {
   if (loading) {
     return <div className='max-w-[1200px] mx-auto p-4 py-8'><Skeleton active paragraph={{ rows: 10 }} /></div>;
   }
-
-  const subtotal = calculateSubtotal();
-  const total = subtotal + shippingFee;
 
   return (
     <div className='bg-[#f5f5f5] min-h-screen py-8 font-sans'>
@@ -152,14 +245,16 @@ const Checkout: React.FC = () => {
 
               <div className='flex gap-4'>
                 <Form.Item name='province' label='Tỉnh/Thành phố' className='flex-1' rules={[{ required: true, message: 'Chọn tỉnh/thành phố' }]}>
-                  <Select size='large' placeholder='Chọn Tỉnh/Thành phố' onChange={handleProvinceChange} options={[
-                    { value: 'Hồ Chí Minh', label: 'Hồ Chí Minh' },
-                    { value: 'Hà Nội', label: 'Hà Nội' },
-                    { value: 'Đà Nẵng', label: 'Đà Nẵng' },
-                    { value: 'Đồng Nai', label: 'Đồng Nai' },
-                    { value: 'Bình Dương', label: 'Bình Dương' },
-                    { value: 'Khác', label: 'Tỉnh/Thành phố khác' },
-                  ]} />
+                  <Select size='large' placeholder='Chọn Tỉnh/Thành phố' onChange={handleProvinceChange} options={
+                    shippingFeesList.length > 0 
+                      ? shippingFeesList.map(f => ({ value: f.provinceName, label: f.provinceName }))
+                      : [
+                          { value: 'Hồ Chí Minh', label: 'Hồ Chí Minh' },
+                          { value: 'Hà Nội', label: 'Hà Nội' },
+                          { value: 'Đà Nẵng', label: 'Đà Nẵng' },
+                          { value: 'Khác', label: 'Khác' }
+                        ]
+                  } />
                 </Form.Item>
 
                 <Form.Item name='ward' label='Xã/Phường' className='flex-1'>
@@ -210,6 +305,58 @@ const Checkout: React.FC = () => {
                   <span className='font-bold text-gray-800'>{shippingFee > 0 ? `${new Intl.NumberFormat('vi-VN').format(shippingFee)}VNĐ` : 'Chưa tính'}</span>
                 </div>
 
+                {/* VOUCHER BẮT ĐẦU */}
+                <div className='mb-4 pt-4 border-t'>
+                  <div className="flex justify-between items-center mb-2">
+                    <Title level={5} className='uppercase text-gray-800 mb-0'>Mã giảm giá</Title>
+                    <Button type="link" className="p-0 text-[#ee4d2d] font-bold" onClick={() => setIsVoucherModalVisible(true)}>
+                      Chọn Mã
+                    </Button>
+                  </div>
+                  <div className='flex gap-2'>
+                    <Input 
+                      placeholder='Nhập mã giảm giá' 
+                      value={voucherCode}
+                      onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                      disabled={appliedVoucher !== null}
+                    />
+                    {appliedVoucher ? (
+                      <Button 
+                        danger 
+                        onClick={() => {
+                          setAppliedVoucher(null);
+                          setDiscountAmount(0);
+                          setVoucherCode('');
+                        }}
+                      >
+                        Hủy
+                      </Button>
+                    ) : (
+                      <Button 
+                        type="primary" 
+                        className="bg-[#82b541] border-none"
+                        onClick={handleApplyVoucher}
+                        loading={isValidatingVoucher}
+                      >
+                        Áp dụng
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {appliedVoucher ? (
+                  <div className='flex justify-between text-sm mb-4 font-medium text-[#ee4d2d]'>
+                    <span>Giảm giá (Voucher)</span>
+                    <span className='font-bold'>- {new Intl.NumberFormat('vi-VN').format(finalDiscountAmount)}VNĐ</span>
+                  </div>
+                ) : activePromotion ? (
+                  <div className='flex justify-between text-sm mb-4 font-medium text-[#82b541]'>
+                    <span>Khuyến mãi toàn sàn (-{activePromotion.discountPercentage}%)</span>
+                    <span className='font-bold'>- {new Intl.NumberFormat('vi-VN').format(finalDiscountAmount)}VNĐ</span>
+                  </div>
+                ) : null}
+                {/* VOUCHER KẾT THÚC */}
+
                 <div className='flex justify-between text-base mb-6 font-bold text-gray-800 border-t pt-4'>
                   <span>Tổng</span>
                   <span>{new Intl.NumberFormat('vi-VN').format(total)}VNĐ</span>
@@ -228,8 +375,8 @@ const Checkout: React.FC = () => {
                         </div>
                       </div>
                       <div className='p-3 border border-gray-200 rounded'>
-                        <Radio value={PaymentMethod.PAYPAL} className='font-bold text-gray-800 w-full'>
-                          Thanh toán qua PayPal
+                        <Radio value={PaymentMethod.VNPAY} className='font-bold text-gray-800 w-full'>
+                          Thanh toán qua VNPAY
                         </Radio>
                       </div>
                     </Space>
@@ -258,49 +405,51 @@ const Checkout: React.FC = () => {
           </div>
         </Form>
 
-        {/* MODAL THANH TOÁN ONLINE (PAYPAL) */}
+
+        {/* MODAL CHỌN VOUCHER */}
         <Modal
-          title={<span className="text-lg font-bold text-gray-800">Thanh toán Đơn hàng #{createdOrderInfo?.id}</span>}
-          open={isPaymentModalVisible}
-          onCancel={() => {
-            setIsPaymentModalVisible(false);
-            message.info('Vui lòng thanh toán sớm để không bị hủy đơn.');
-            navigate('/history');
-          }}
-          footer={[
-            <Button key="cancel" onClick={() => { setIsPaymentModalVisible(false); navigate('/history'); }}>
-              Thanh toán sau
-            </Button>,
-            <Button key="submit" type="primary" className="bg-[#ee4d2d] border-none" onClick={() => navigate('/history')}>
-              Tôi đã thanh toán xong
-            </Button>
-          ]}
-          centered closable={false} maskClosable={false}
+          title={<span className="text-lg font-bold text-gray-800">Chọn Mã Giảm Giá</span>}
+          open={isVoucherModalVisible}
+          onCancel={() => setIsVoucherModalVisible(false)}
+          footer={null}
+          width={500}
         >
-          {createdOrderInfo && (
-            <div className='flex flex-col items-center justify-center py-4'>
-              <OrderTimer 
-                startTime={createdOrderInfo.date} 
-                onExpire={() => {
-                  setIsPaymentModalVisible(false);
-                  message.error('Đã hết 2 phút! Đơn hàng của bạn đã tự động bị hủy.');
-                  navigate('/history');
-                }} 
-              />
-              <div className='p-6 border border-gray-200 rounded-xl bg-white shadow-sm text-center w-full max-w-sm'>
-                <Text className='block mb-2 font-medium text-gray-600'>Tổng tiền cần thanh toán</Text>
-                <Text className='block text-3xl font-bold text-[#ee4d2d] mb-6'>
-                  ₫{new Intl.NumberFormat('vi-VN').format(createdOrderInfo.totalAmount)}
-                </Text>
-                <div className="bg-gray-50 p-4 rounded-lg mb-4 flex justify-center w-full">
-                  <PayPalScriptProvider options={{ clientId: "AeUy_yLBmbpd2uRXsO9dyn9zCCGzoegIVfbLB7UN1Ze2bxb2QdsDnr4-yvKL4fGgSg_vxp1yard3YvY8", currency: "USD" }}>
-                    <PayPalPaymentButton orderId={createdOrderInfo.id.toString()} amount={createdOrderInfo.totalAmount} />
-                  </PayPalScriptProvider>
-                </div>
-                <Text className='text-sm text-gray-500'>Nếu bạn đã thanh toán, vui lòng bấm "Tôi đã thanh toán xong" để chúng tôi xác nhận và xử lý đơn hàng của bạn nhanh hơn.</Text>
+          <div className="flex flex-col gap-3 py-4 max-h-[60vh] overflow-y-auto pr-2">
+            {availableVouchers.length > 0 ? (
+              availableVouchers.map((voucher) => {
+                // const isEligible = subtotal >= voucher.minOrderValue && voucher.StartDate <= new Date() && voucher.EndDate >= new Date() && voucher.IsLocked === false;
+                const isEligible = subtotal >= voucher.minOrderValue ;
+                return (
+                  <div 
+                    key={voucher.id} 
+                    className={`flex items-center justify-between p-4 border rounded-lg ${isEligible ? 'bg-white border-[#ee4d2d] hover:bg-orange-50 cursor-pointer' : 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed'}`}
+                    onClick={() => isEligible && handleSelectVoucher(voucher.code)}
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="bg-[#ee4d2d] text-white px-2 py-1 rounded text-xs font-bold uppercase">{voucher.code}</span>
+                      </div>
+                      <div className="text-base font-bold text-gray-800">
+                        {`Giảm ${new Intl.NumberFormat('vi-VN').format(voucher.discountValue)}đ`}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Đơn tối thiểu {new Intl.NumberFormat('vi-VN').format(voucher.minOrderValue)}đ
+                      </div>
+                    </div>
+                    {isEligible ? (
+                      <Button type="primary" size="small" className="bg-[#ee4d2d] border-none ml-2">Dùng ngay</Button>
+                    ) : (
+                      <span className="text-xs text-gray-400 font-medium ml-2 w-16 text-right">Không đủ ĐK</span>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                Chưa có mã giảm giá nào.
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </Modal>
       </div>
     </div>
