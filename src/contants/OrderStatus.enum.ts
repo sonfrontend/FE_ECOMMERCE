@@ -9,5 +9,10 @@ export enum OrderStatus {
     Refunded = 'Refunded',
     Disputed = 'Disputed',
     PendingResolution = 'PendingResolution',
-    Resolved = 'Resolved'
+    Resolved = 'Resolved',
+    Lost = 'Lost'
 }
+
+export const getOrderStatusList = (): string[] => {
+  return Object.values(OrderStatus);
+};

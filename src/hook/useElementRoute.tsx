@@ -21,14 +21,14 @@ const VnpayReturn = lazy(() => import('@/pages/Payment/VnpayReturn'));
 // Admin Imports
 const AdminLayout = lazy(() => import('@/layouts/AdminLayout'));
 const AdminDashboard = lazy(() => import('@/pages/admin/Dashboard'));
-const AdminProductManage = lazy(() => import('@/pages/admin/ProductManage'));
+const AdminProductManage = lazy(() => import('@/pages/admin/AdminProductManage'));
 const AdminUserManage = lazy(() => import('@/pages/admin/AdminUserManage'));
 const RoleManage = lazy(() => import('@/pages/admin/RoleManage/RoleManage'));
-const OrderManage = lazy(() => import('@/pages/admin/OrderManage'));
+const OrderManage = lazy(() => import('@/pages/admin/AdminOrderManage'));
 const AdminPaymentManage = lazy(() => import('@/pages/admin/AdminPaymentManage'));
 const AdminWalletManage = lazy(() => import('@/pages/admin/AdminWalletManage'));
 const AdminVoucherManage = lazy(() => import('@/pages/admin/AdminVoucherManage'));
-const ShippingFeeManage = lazy(() => import('@/pages/admin/ShippingFeeManage'));
+const ShippingFeeManage = lazy(() => import('@/pages/admin/AdminShippingFeeManage'));
 const AdminChatManage = lazy(() => import('@/pages/admin/AdminChatManage'));
 
 export default function useRouteElements() {

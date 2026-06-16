@@ -19,7 +19,12 @@ const Login = () => {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
         localStorage.setItem('userInfo', JSON.stringify(data.userInfo));
-        window.location.href = '/';
+        
+        if (data.userInfo?.roles?.includes('Admin')) {
+          window.location.href = '/admin';
+        } else {
+          window.location.href = '/';
+        }
       } else {
         toast.error(data.message);
       }
@@ -64,7 +69,12 @@ const Login = () => {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
         localStorage.setItem('userInfo', JSON.stringify(data.userInfo));
-        window.location.href = '/';
+        
+        if (data.userInfo?.roles?.includes('Admin')) {
+          window.location.href = '/admin';
+        } else {
+          window.location.href = '/';
+        }
       } else {
         alert('Lỗi từ C#: ' + data.message);
       }

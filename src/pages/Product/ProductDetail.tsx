@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Breadcrumb, Button, Skeleton, message, Image, Rate, Avatar, Modal } from 'antd';
-import { ShoppingCartOutlined, RightOutlined, LeftOutlined, HeartOutlined, HeartFilled, StarFilled, ClockCircleOutlined, UserOutlined, MessageOutlined } from '@ant-design/icons';
+import { Breadcrumb, Button, Skeleton, message, Image, Rate, Avatar, Modal, Typography, Dropdown, Menu } from 'antd';
+import { HeartOutlined, HeartFilled, MessageOutlined, ShoppingCartOutlined, ShareAltOutlined, RobotOutlined, UserOutlined, RightOutlined, LeftOutlined, StarFilled, ClockCircleOutlined } from '@ant-design/icons';
 import http from '@/apis/http';
 import { addAIHistory } from '@/utils/aiHistory';
 import { getImageUrl } from '@/utils/imageUrl';
+import { notificationService } from '@/services/notification.service';
 
 interface ProductVariant {
   articleId: string;
@@ -44,6 +45,7 @@ interface ProductDetailData {
 }
 
 const ProductDetail: React.FC = () => {
+  const { Title, Text, Paragraph } = Typography;
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [product, setProduct] = useState<ProductDetailData | null>(null);
@@ -204,14 +206,11 @@ const ProductDetail: React.FC = () => {
       
       // Call BE to log the interaction (1 = View > 5s, Score = 1)
       try {
-        const token = localStorage.getItem('token');
-        if (token) {
-          await http.post('/api/Interaction/log', {
-            productId: product.articleId,
-            interactionType: 1,
-            score: 1
-          });
-        }
+        console.log('Sending track-view API...');
+        await http.post(`/api/Product/${product.articleId}/track-view`, {
+          durationInSeconds: 5
+        });
+        console.log('Track-view API sent successfully');
       } catch (err) {
         console.error('Failed to log AI interaction', err);
       }
@@ -288,6 +287,13 @@ const ProductDetail: React.FC = () => {
       // Báo hiệu cho Header cập nhật giỏ hàng
       window.dispatchEvent(new Event('cart-updated'));
       
+      // Báo cho Admin
+      try {
+        await notificationService.notifyAdminAction('ADD_TO_CART', `${quantity} x ${currentVariant.articleId} - ${product.productName}`);
+      } catch (e) {
+        console.error('Failed to notify admin', e);
+      }
+
       // AI Tracking: Lưu vào lịch sử khi thêm giỏ hàng
       addAIHistory(currentVariant.articleId);
       console.log('AI History: Added to cart', currentVariant.articleId);
@@ -587,16 +593,10 @@ const ProductDetail: React.FC = () => {
               {/* Chọn Kích Cỡ */}
               {sizes.length > 0 && (
                 <div className='flex items-start'>
-                  <div className='w-[110px] text-gray-500 mt-2 shrink-0 capitalize flex flex-col gap-1'>
+                  <div className='w-[110px] text-gray-500 mt-2 shrink-0 capitalize'>
                     Kích cỡ
-                    <button 
-                      onClick={() => setIsSizeGuideVisible(true)}
-                      className="text-left text-[#ee4d2d] hover:underline text-[13px] bg-transparent border-none cursor-pointer p-0"
-                    >
-                      Bảng size
-                    </button>
                   </div>
-                  <div className='flex flex-wrap gap-2 flex-1'>
+                  <div className='flex flex-wrap gap-2 flex-1 items-center'>
                     {sizes.map((size) => {
                       const matchingVariants = selectedColor ? allVariants.filter(v => v.color === selectedColor && v.size === size) : allVariants.filter(v => v.size === size);
                       const isSizeOutOfStock = matchingVariants.length === 0 || matchingVariants.every(v => v.stockQuantity === 0);
@@ -619,6 +619,12 @@ const ProductDetail: React.FC = () => {
                       </button>
                     );
                     })}
+                    <button 
+                      onClick={() => setIsSizeGuideVisible(true)}
+                      className="text-[#ee4d2d] hover:underline text-[14px] bg-transparent border-none cursor-pointer p-0 ml-2 font-medium"
+                    >
+                      Bảng size
+                    </button>
                   </div>
                 </div>
               )}
@@ -669,28 +675,61 @@ const ProductDetail: React.FC = () => {
               >
                 Mua Ngay
               </Button>
-              <Button
-                size='large'
-                icon={<MessageOutlined className='text-[20px]' />}
-                className='h-[48px] px-6 rounded-sm border-gray-300 bg-white text-gray-700 font-medium text-[15px] hover:!border-[#ee4d2d] hover:!text-[#ee4d2d] shadow-none flex items-center gap-2'
-                onClick={() => {
-                  const url = window.location.origin + `/product/${product.articleId}`;
-                  window.dispatchEvent(new CustomEvent('share-to-chat', { 
-                    detail: { 
-                      productUrl: url,
-                      product: {
-                        id: product.articleId,
-                        name: product.productName,
-                        price: displayPrice,
-                        originalPrice: displayOriginalPrice,
-                        image: mainImage || product.imageUrl
+              <Dropdown
+                menu={{
+                  items: [
+                    {
+                      key: 'admin',
+                      label: 'Hỗ trợ trực tuyến (Admin)',
+                      icon: <UserOutlined />,
+                      onClick: () => {
+                        const url = window.location.origin + `/product/${product.articleId}`;
+                        window.dispatchEvent(new CustomEvent('share-to-live-chat', { 
+                          detail: { 
+                            productUrl: url,
+                            product: {
+                              id: product.articleId,
+                              name: product.productName,
+                              price: displayPrice,
+                              originalPrice: displayOriginalPrice,
+                              image: mainImage || product.imageUrl
+                            }
+                          } 
+                        }));
                       }
-                    } 
-                  }));
+                    },
+                    {
+                      key: 'ai',
+                      label: 'Nhắn với AI Chatbot',
+                      icon: <RobotOutlined />,
+                      onClick: () => {
+                        const url = window.location.origin + `/product/${product.articleId}`;
+                        window.dispatchEvent(new CustomEvent('share-to-chat', { 
+                          detail: { 
+                            productUrl: url,
+                            product: {
+                              id: product.articleId,
+                              name: product.productName,
+                              price: displayPrice,
+                              originalPrice: displayOriginalPrice,
+                              image: mainImage || product.imageUrl
+                            }
+                          } 
+                        }));
+                      }
+                    }
+                  ]
                 }}
+                placement="bottom"
               >
-                Nhắn tin
-              </Button>
+                <Button
+                  size='large'
+                  icon={<MessageOutlined className='text-[20px]' />}
+                  className='h-[48px] px-6 rounded-sm border-gray-300 bg-white text-gray-700 font-medium text-[15px] hover:!border-[#ee4d2d] hover:!text-[#ee4d2d] shadow-none flex items-center gap-2'
+                >
+                  Nhắn tin
+                </Button>
+              </Dropdown>
               <Button
                 size='large'
                 icon={isFav ? <HeartFilled className='text-blue-500 text-[20px]' /> : <HeartOutlined className='text-gray-500 text-[20px] group-hover:text-blue-500' />}
@@ -798,14 +837,18 @@ const ProductDetail: React.FC = () => {
         open={isSizeGuideVisible}
         onCancel={() => setIsSizeGuideVisible(false)}
         footer={null}
-        width={800}
+        width={600}
         centered
       >
-        <div className="flex flex-col gap-4">
-          <div className="text-center font-medium">Bảng Size Nam</div>
-          <img src="https://res.cloudinary.com/dss8hptah/image/upload/v1/size_nam.png" alt="Size Nam" className="w-full rounded-md border border-gray-200" />
-          <div className="text-center font-medium mt-4">Bảng Size Nữ</div>
-          <img src="https://res.cloudinary.com/dss8hptah/image/upload/v1/size_nu.png" alt="Size Nữ" className="w-full rounded-md border border-gray-200" />
+        <div className="flex flex-col gap-6 max-h-[70vh] overflow-y-auto p-2">
+          <div>
+            <div className="text-center font-medium mb-2">Bảng Size Nam</div>
+            <img src="https://res.cloudinary.com/dss8hptah/image/upload/v1/size_nam.png" alt="Size Nam" className="w-full max-h-[35vh] object-contain rounded-md border border-gray-200" />
+          </div>
+          <div>
+            <div className="text-center font-medium mb-2">Bảng Size Nữ</div>
+            <img src="https://res.cloudinary.com/dss8hptah/image/upload/v1/size_nu.png" alt="Size Nữ" className="w-full max-h-[35vh] object-contain rounded-md border border-gray-200" />
+          </div>
         </div>
       </Modal>
     </div>

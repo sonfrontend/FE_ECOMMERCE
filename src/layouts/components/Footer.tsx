@@ -1,6 +1,8 @@
 import React from 'react';
 import { Typography, Row, Col } from 'antd';
 import { FacebookOutlined, InstagramOutlined, TwitterOutlined, YoutubeOutlined } from '@ant-design/icons';
+import fbIcon from '../../assets/icons/fb.svg';
+import zlIcon from '../../assets/icons/zl.svg';
 
 const { Title, Text, Link } = Typography;
 
@@ -52,8 +54,13 @@ const Footer: React.FC = () => {
           <Title level={5} className="!text-gray-800 uppercase !text-sm mb-4">THEO DÕI CHÚNG TÔI TRÊN</Title>
           <ul className="space-y-3">
             <li>
-              <Link href="#" className="text-gray-500 hover:text-[#ee4d2d] flex items-center gap-2">
-                <FacebookOutlined className="text-lg" /> Facebook
+              <Link href="https://m.me/lqson2001" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-[#ee4d2d] flex items-center gap-2">
+                <img src={fbIcon} alt="Facebook" className="w-5 h-5 rounded-full object-contain" /> Facebook
+              </Link>
+            </li>
+            <li>
+              <Link href="https://zalo.me/0345505829" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-[#ee4d2d] flex items-center gap-2">
+                <img src={zlIcon} alt="Zalo" className="w-5 h-5 rounded-full object-contain" /> Zalo
               </Link>
             </li>
           </ul>

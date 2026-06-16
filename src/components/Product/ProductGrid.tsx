@@ -8,6 +8,7 @@ import http from '@/apis/http';
 import { getAIHistory } from '@/utils/aiHistory';
 import { getFavorites, toggleFavorite } from '@/utils/favorite';
 import { getImageUrl } from '@/utils/imageUrl';
+import ProductCard from './ProductCard';
 
 const { Text } = Typography;
 
@@ -213,46 +214,23 @@ const ProductGrid: React.FC = () => {
   // Thẻ sản phẩm
   const renderProductCard = (product: Product, index: number, isLast: boolean) => {
     return (
-      <Link
-        to={`/product/${product.productCode}`}
-        key={product.articleId + '-' + index}
-        ref={isLast ? lastProductElementRef : null}
-        className='group flex flex-col cursor-pointer border border-gray-200 shadow-sm hover:border-[#ee4d2d] hover:-translate-y-1 hover:shadow-md transition-all duration-300 bg-white relative rounded-md overflow-hidden'
-      >
-        <div className='relative w-full aspect-[3/4] overflow-hidden bg-[#f5f5f5]'>
-          <img
-            alt={product.productName}
-            src={product.imageUrl?.startsWith('http') ? product.imageUrl : getImageUrl('/images/' + product.imageUrl)}
-            className='absolute inset-0 w-full h-full object-cover'
-          />
-          {/* Nút Yêu thích (Trái tim) */}
-          <div 
-            className='absolute top-2 right-2 bg-white/80 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer shadow-sm hover:bg-white transition-all z-10'
-            onClick={(e) => handleToggleFav(e, product.articleId || (product as any).productId)}
-          >
-            {favorites.includes(product.articleId || (product as any).productId) ? (
-              <HeartFilled className='text-blue-500 text-lg' />
-            ) : (
-              <HeartOutlined className='text-gray-500 text-lg hover:text-blue-500' />
-            )}
-          </div>
-        </div>
-
-        <div className='flex flex-col text-left p-2 flex-1'>
-          <Text
-            className='text-gray-800 font-normal text-[13px] leading-tight line-clamp-2 mb-1.5 min-h-[36px]'
-            title={product.productName}
-          >
-            {product.productName}
-          </Text>
-          <div className='flex items-center justify-between mt-auto pt-1'>
-            <Text className='text-[#ee4d2d] font-medium text-base'>
-              <span className='text-xs mr-0.5 underline'>đ</span>
-              {new Intl.NumberFormat('vi-VN').format(product.price)}
-            </Text>
-          </div>
-        </div>
-      </Link>
+      <div key={product.articleId + '-' + index} ref={isLast ? lastProductElementRef : null}>
+        <ProductCard
+          productId={product.articleId || (product as any).productId || product.productCode}
+          name={product.productName}
+          imageUrl={product.imageUrl}
+          currentPrice={(product as any).currentPrice || product.price || 0}
+          originalPrice={(product as any).originalPrice}
+          discountPercentage={(product as any).discountPercentage}
+          soldQuantity={(product as any).soldQuantity}
+          rating={(product as any).rating}
+          reviewsCount={(product as any).reviewsCount}
+          likesCount={(product as any).likesCount}
+          isFavorite={favorites.includes(product.articleId || (product as any).productId)}
+          showFavoriteIcon={true}
+          onFavoriteClick={(e) => handleToggleFav(e, product.articleId || (product as any).productId)}
+        />
+      </div>
     );
   };
 

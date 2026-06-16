@@ -1,17 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Button, Space, Modal, Form, Input, DatePicker, InputNumber, Switch, message, Tag, Typography, Popconfirm, Select } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, UserAddOutlined } from '@ant-design/icons';
 import http from '@/apis/http';
 import moment from 'moment';
 
 const { Title } = Typography;
+const { RangePicker } = DatePicker;
 
 const AdminVoucherManage: React.FC = () => {
   const [vouchers, setVouchers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // States for Voucher Modal
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form] = Form.useForm();
+
+  // States for Users Modal
+  const [isUsersModalVisible, setIsUsersModalVisible] = useState(false);
+  const [selectedVoucherId, setSelectedVoucherId] = useState<number | null>(null);
+  const [voucherUsers, setVoucherUsers] = useState<any[]>([]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [selectedUserToAssign, setSelectedUserToAssign] = useState<string | null>(null);
 
   const fetchVouchers = async () => {
     try {
@@ -25,8 +36,18 @@ const AdminVoucherManage: React.FC = () => {
     }
   };
 
+  const fetchAllUsers = async () => {
+    try {
+      const res = await http.get('/api/User');
+      setAllUsers(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
     fetchVouchers();
+    fetchAllUsers();
   }, []);
 
   const handleOpenModal = (record?: any) => {
@@ -37,12 +58,20 @@ const AdminVoucherManage: React.FC = () => {
         discountValue: record.discountValue,
         minOrderValue: record.minOrderValue,
         quantity: record.quantity || 0,
-        isActive: record.isActive
+        isActived: record.isActived,
+        dateRange: [
+          record.startDate ? moment(record.startDate) : moment(),
+          record.endDate ? moment(record.endDate) : moment().add(7, 'days')
+        ]
       });
     } else {
       setEditingId(null);
       form.resetFields();
-      form.setFieldsValue({ quantity: 0, isActive: true });
+      form.setFieldsValue({ 
+        quantity: 0, 
+        isActived: true,
+        dateRange: [moment(), moment().add(7, 'days')]
+      });
     }
 
     setIsModalVisible(true);
@@ -51,7 +80,13 @@ const AdminVoucherManage: React.FC = () => {
   const handleSave = async (values: any) => {
     try {
       const payload = {
-        ...values
+        code: values.code,
+        discountValue: values.discountValue,
+        minOrderValue: values.minOrderValue,
+        quantity: values.quantity,
+        isActived: values.isActived,
+        startDate: values.dateRange ? values.dateRange[0].toISOString() : null,
+        endDate: values.dateRange ? values.dateRange[1].toISOString() : null,
       };
 
       if (editingId) {
@@ -75,6 +110,55 @@ const AdminVoucherManage: React.FC = () => {
       fetchVouchers();
     } catch (error) {
       message.error('Có lỗi xảy ra khi xóa Voucher');
+    }
+  };
+
+  const handleOpenUsersModal = async (record: any) => {
+    setSelectedVoucherId(record.id);
+    setIsUsersModalVisible(true);
+    await fetchVoucherUsers(record.id);
+  };
+
+  const fetchVoucherUsers = async (id: number) => {
+    try {
+      setUsersLoading(true);
+      const res = await http.get(`/api/Voucher/admin/${id}/users`);
+      setVoucherUsers(res.data);
+    } catch (error) {
+      message.error('Lỗi khi tải danh sách User của Voucher');
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const handleAssignVoucher = async () => {
+    if (!selectedVoucherId || !selectedUserToAssign) return;
+    try {
+      setUsersLoading(true);
+      await http.post(`/api/Voucher/admin/${selectedVoucherId}/assign/${selectedUserToAssign}`);
+      message.success('Cấp phát Voucher thành công');
+      setSelectedUserToAssign(null);
+      await fetchVoucherUsers(selectedVoucherId);
+      fetchVouchers(); // Refresh stock quantity
+    } catch (error: any) {
+      message.error(error.response?.data || 'Có lỗi xảy ra');
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const handleRevokeVoucher = async (userId: string) => {
+    if (!selectedVoucherId) return;
+    try {
+      setUsersLoading(true);
+      await http.delete(`/api/Voucher/admin/${selectedVoucherId}/revoke/${userId}`);
+      message.success('Thu hồi Voucher thành công');
+      await fetchVoucherUsers(selectedVoucherId);
+      fetchVouchers(); // Refresh stock quantity
+    } catch (error: any) {
+      message.error(error.response?.data || 'Có lỗi xảy ra');
+    } finally {
+      setUsersLoading(false);
     }
   };
 
@@ -104,14 +188,19 @@ const AdminVoucherManage: React.FC = () => {
       title: 'Số lượng phát hành',
       dataIndex: 'quantity',
       key: 'quantity',
-      render: (val: number) => val === 0 ? <Tag color="orange">Không giới hạn</Tag> : <Tag color="blue">{new Intl.NumberFormat('vi-VN').format(val)}</Tag>
+      render: (val: number) => <Tag color="blue">{new Intl.NumberFormat('vi-VN').format(val)}</Tag>
     },
     {
       title: 'Trạng thái',
-      dataIndex: 'isActive',
-      key: 'isActive',
-      render: (isActive: boolean) => {
-        if (!isActive) return <Tag color="red">Bị khóa (Đã dùng)</Tag>;
+      key: 'status',
+      render: (_: any, record: any) => {
+        const isOutOfStock = record.quantity <= 0;
+        const isExpired = new Date(record.endDate).getTime() < new Date().getTime();
+
+        if (isOutOfStock) return <Tag color="orange">Đã hết</Tag>;
+        if (isExpired) return <Tag color="red">Hết hạn</Tag>;
+        if (record.isActived === false || record.isActive === false) return <Tag color="default">Bị khóa</Tag>;
+        
         return <Tag color="green">Đang hoạt động</Tag>;
       }
     },
@@ -121,10 +210,31 @@ const AdminVoucherManage: React.FC = () => {
       render: (_: any, record: any) => (
         <Space size="middle">
           <Button type="text" icon={<EditOutlined />} onClick={() => handleOpenModal(record)} />
+          <Button type="text" icon={<TeamOutlined />} onClick={() => handleOpenUsersModal(record)} />
           <Popconfirm title="Bạn có chắc muốn xóa Voucher này?" onConfirm={() => handleDelete(record.id)}>
             <Button type="text" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
+      )
+    }
+  ];
+
+  const userColumns = [
+    { title: 'Tên Khách Hàng', dataIndex: 'userName', key: 'userName' },
+    { title: 'Email', dataIndex: 'email', key: 'email' },
+    { 
+      title: 'Trạng thái', 
+      dataIndex: 'isUsed', 
+      key: 'isUsed',
+      render: (isUsed: boolean) => isUsed ? <Tag color="red">Đã sử dụng</Tag> : <Tag color="green">Chưa dùng</Tag>
+    },
+    {
+      title: 'Hành động',
+      key: 'action',
+      render: (_: any, record: any) => (
+        <Popconfirm title="Thu hồi Voucher của User này?" onConfirm={() => handleRevokeVoucher(record.userId)} disabled={record.isUsed}>
+          <Button type="link" danger disabled={record.isUsed}>Thu hồi</Button>
+        </Popconfirm>
       )
     }
   ];
@@ -147,6 +257,7 @@ const AdminVoucherManage: React.FC = () => {
         loading={loading}
       />
 
+      {/* MODAL VOUCHER */}
       <Modal
         title={editingId ? "Sửa Voucher" : "Tạo Voucher mới"}
         open={isModalVisible}
@@ -159,21 +270,25 @@ const AdminVoucherManage: React.FC = () => {
             <Input placeholder="Ví dụ: SUMMER2024" className="uppercase" />
           </Form.Item>
 
-          <div className="flex gap-4">
-            <Form.Item name="discountValue" label="Số tiền giảm (VNĐ)" className="flex-1" rules={[{ required: true, message: 'Nhập số tiền giảm' }]}>
+          <div className="grid grid-cols-2 gap-4">
+            <Form.Item name="discountValue" label="Số tiền giảm (VNĐ)" rules={[{ required: true, message: 'Nhập số tiền giảm' }]}>
               <InputNumber min={0} className="w-full" />
             </Form.Item>
 
-            <Form.Item name="minOrderValue" label="Đơn tối thiểu (VNĐ)" className="flex-1" rules={[{ required: true }]}>
+            <Form.Item name="minOrderValue" label="Đơn tối thiểu (VNĐ)" rules={[{ required: true }]}>
               <InputNumber min={0} className="w-full" />
             </Form.Item>
 
-            <Form.Item name="quantity" label="Số lượng phát hành" className="flex-1" rules={[{ required: true }]}>
+            <Form.Item name="quantity" label="Số lượng phát hành" rules={[{ required: true }]}>
               <InputNumber min={0} className="w-full" />
+            </Form.Item>
+
+            <Form.Item name="dateRange" label="Thời gian có hiệu lực" rules={[{ required: true, message: 'Vui lòng chọn thời gian' }]}>
+              <RangePicker showTime format="YYYY-MM-DD HH:mm" className="w-full" />
             </Form.Item>
           </div>
 
-          <Form.Item name="isActive" label="Trạng thái kích hoạt" valuePropName="checked">
+          <Form.Item name="isActived" label="Trạng thái kích hoạt" valuePropName="checked">
             <Switch />
           </Form.Item>
 
@@ -184,6 +299,45 @@ const AdminVoucherManage: React.FC = () => {
             </Button>
           </div>
         </Form>
+      </Modal>
+
+      {/* MODAL USERS */}
+      <Modal
+        title="Danh sách User sở hữu Voucher"
+        open={isUsersModalVisible}
+        onCancel={() => setIsUsersModalVisible(false)}
+        footer={null}
+        width={800}
+      >
+        <div className="flex gap-2 mb-4">
+          <Select
+            showSearch
+            placeholder="Tìm kiếm User theo Email..."
+            optionFilterProp="children"
+            className="flex-1"
+            value={selectedUserToAssign}
+            onChange={setSelectedUserToAssign}
+            filterOption={(input, option) => {
+              const childrenString = String(option?.children || '');
+              return childrenString.toLowerCase().includes(input.toLowerCase());
+            }}
+          >
+            {allUsers.map(u => (
+              <Select.Option key={u.id} value={u.id}>{u.email}</Select.Option>
+            ))}
+          </Select>
+          <Button type="primary" icon={<UserAddOutlined />} onClick={handleAssignVoucher} loading={usersLoading} disabled={!selectedUserToAssign}>
+            Tặng Voucher
+          </Button>
+        </div>
+        
+        <Table
+          dataSource={voucherUsers}
+          columns={userColumns}
+          rowKey='id'
+          loading={usersLoading}
+          size="small"
+        />
       </Modal>
     </div>
   );

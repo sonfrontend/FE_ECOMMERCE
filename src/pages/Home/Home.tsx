@@ -22,11 +22,6 @@ const Home: React.FC = () => {
         <FlashSale />
       </div>
 
-      {/* Khu vực Danh sách Sản phẩm */}
-      {/* <div className="max-w-7xl mx-auto mt-4 px-4 sm:px-6 lg:px-8 pb-8">
-        <ProductGrid />
-      </div> */}
-
       {/* Khu vực Gợi ý Sản phẩm (AI) */}
       <div className="max-w-7xl mx-auto mt-4 px-4 sm:px-6 lg:px-8 pb-8">
         <ProductRecommendation />

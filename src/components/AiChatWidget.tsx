@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, Input, Typography, Badge, Avatar } from 'antd';
-import { MessageOutlined, CloseOutlined, SendOutlined, RobotOutlined, UserOutlined } from '@ant-design/icons';
+import { MessageOutlined, CloseOutlined, SendOutlined, UserOutlined,RobotOutlined  } from '@ant-design/icons';
+import aiIcon from '../assets/icons/ai.svg';
 import http from '@/apis/http';
 import { jwtDecode } from 'jwt-decode';
 import { getImageUrl } from '@/utils/imageUrl';
@@ -166,7 +167,7 @@ const AiChatWidget: React.FC = () => {
   if (!currentUserId) return null;
 
   return (
-    <div className="fixed bottom-[88px] right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-[80px] right-6 z-50 flex flex-col items-end">
       {isOpen && (
         <div className="w-[360px] h-[500px] bg-[#f9fafb] rounded-2xl shadow-2xl flex flex-col mb-4 overflow-hidden border border-gray-200">
           {/* Header */}
@@ -264,14 +265,12 @@ const AiChatWidget: React.FC = () => {
 
       {/* Floating Button */}
       <Badge count={unreadCount} overflowCount={99}>
-        <Button 
-          type="primary" 
-          shape="circle" 
-          size="large"
-          className="w-14 h-14 bg-gradient-to-r from-[#ee4d2d] to-[#ff7337] hover:scale-105 border-none shadow-lg flex items-center justify-center transition-transform"
-          icon={isOpen ? <CloseOutlined style={{ fontSize: '24px' }}/> : <RobotOutlined style={{ fontSize: '26px' }}/>}
+        <div 
+          className="w-12 h-12 flex items-center justify-center hover:scale-110 transition-transform cursor-pointer"
           onClick={toggleChat}
-        />
+        >
+          {isOpen ? <CloseOutlined style={{ fontSize: '24px', color: '#666' }}/> : <img src={aiIcon} alt="AI Chat" className="w-full h-full object-contain drop-shadow-md" />}
+        </div>
       </Badge>
     </div>
   );

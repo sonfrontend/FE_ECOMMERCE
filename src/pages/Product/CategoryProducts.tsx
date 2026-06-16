@@ -118,15 +118,20 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
       if (location.state?.products) {
         setLocalImageProducts(location.state.products);
       }
-    } else if (location.pathname !== '/search' || (!hasFilteredImageSearch && !isImageSearch)) {
-      // Only clear if we navigated away, OR if we aren't currently doing a local image search
-      // We removed the aggressive else block to avoid wiping local image search when searchParams change.
+    } else if (mode === 'search' && !isImageSearch) {
+      // Clear image search state if we are doing a text search
+      setHasFilteredImageSearch(false);
+      setActiveSearchImage(null);
+      setLocalImageProducts([]);
     }
     
     if (mode === 'search' && queryParam) {
       setKeyword(queryParam);
       setLocalSearchKeyword(queryParam);
-    } else if (!hasFilteredImageSearch) {
+    } else if (mode === 'search' && isImageSearch) {
+      setKeyword('');
+      setLocalSearchKeyword('');
+    } else if (!hasFilteredImageSearch && !isImageSearch) {
       setKeyword('');
       setLocalSearchKeyword('');
     }
@@ -158,7 +163,7 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
           }
         } else {
           // For search and flash-sale, display all root categories
-          setParentCategory({ id: 0, name: 'Tất cả danh mục' } as Category);
+          setParentCategory({ id: 0, name: 'All category' } as Category);
           setSubCategories(cats);
         }
       } catch (error) {
@@ -200,17 +205,27 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
       if (isNew) setLoading(true);
       else setLoadingMore(true);
 
-      if (isImageSearch) {
-        const imageProducts = location.state?.products || localImageProducts || [];
+      if (isImageSearch || hasFilteredImageSearch) {
+        const imageProducts = isImageSearch ? (location.state?.products || localImageProducts || []) : localImageProducts;
         let sorted = [...imageProducts];
-        if (currentPrice === 'ins') sorted.sort((a,b) => (a.currentPrice || a.price || 0) - (b.currentPrice || b.price || 0));
-        else if (currentPrice === 'des') sorted.sort((a,b) => (b.currentPrice || b.price || 0) - (a.currentPrice || a.price || 0));
-        setProducts(sorted);
-        setTotalItems(sorted.length);
-      } else if (hasFilteredImageSearch) {
-        let sorted = [...localImageProducts];
-        if (currentPrice === 'ins') sorted.sort((a,b) => (a.currentPrice || a.price || 0) - (b.currentPrice || b.price || 0));
-        else if (currentPrice === 'des') sorted.sort((a,b) => (b.currentPrice || b.price || 0) - (a.currentPrice || a.price || 0));
+        
+        // Filter by favorites
+        if (currentType === 'favor') {
+          const favIds = getFavorites();
+          sorted = sorted.filter(p => favIds.includes(p.productId || (p as any).articleId || p.productCode));
+        }
+
+        // Sort by price
+        if (currentPrice === 'ins') {
+          sorted.sort((a,b) => (a.currentPrice || a.price || 0) - (b.currentPrice || b.price || 0));
+        } else if (currentPrice === 'des') {
+          sorted.sort((a,b) => (b.currentPrice || b.price || 0) - (a.currentPrice || a.price || 0));
+        } 
+        // Sort by bestselling
+        else if (currentType === 'bestselling') {
+          sorted.sort((a,b) => (b.soldQuantity || b.SoldQuantity || 0) - (a.soldQuantity || a.SoldQuantity || 0));
+        }
+
         setProducts(sorted);
         setTotalItems(sorted.length);
       } else {
@@ -232,12 +247,24 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
               sortPrice: backendSort
             });
             
-            if (isNew) {
-              setProducts(res.data.data || []);
-            } else {
-              setProducts(prev => [...prev, ...(res.data.data || [])]);
+            let fetchedData = res.data.data || [];
+            const activeKw = mode === 'search' ? (keyword || queryParam) : keyword;
+            
+            // Lọc theo keyword nếu có
+            if (activeKw) {
+              const lowerKw = activeKw.toLowerCase();
+              fetchedData = fetchedData.filter((p: any) => 
+                p.productName?.toLowerCase().includes(lowerKw) || 
+                p.description?.toLowerCase().includes(lowerKw)
+              );
             }
-            setTotalItems((res.data.data || []).length);
+            
+            if (isNew) {
+              setProducts(fetchedData);
+            } else {
+              setProducts(prev => [...prev, ...fetchedData]);
+            }
+            setTotalItems(fetchedData.length);
           }
         } else {
           let backendSortBy = '';
@@ -427,6 +454,8 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
       setLocalImageProducts(aiProducts);
       setHasFilteredImageSearch(true);
       setPage(1);
+      setKeyword('');
+      setLocalSearchKeyword('');
       setSearchParams({});
     } catch  {
       message.error({ content: 'Lỗi khi phân tích ảnh!', key: 'ai-cat-search' });
@@ -569,50 +598,43 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
           {mode !== 'category' && (
             <div className='bg-white p-4 mb-4 shadow-sm rounded-sm flex items-center justify-between border border-gray-100'>
               <div className='flex items-center gap-2 text-lg font-medium text-gray-800'>
-                {mode === 'search' && isImageSearch ? (
+                {mode === 'search' ? (
                   <>
-                    <PictureOutlined className='text-[#ee4d2d] text-2xl' />
-                    <span>Kết quả tìm kiếm bằng hình ảnh</span>
-                  </>
-                ) : mode === 'search' ? (
-                  <>
-                    <SearchOutlined className='text-[#ee4d2d]' />
-                    {(hasFilteredImageSearch && activeSearchImage) || keyword ? (
-            <div className="flex items-center gap-3 ">
-             <span>
-                      Kết quả tìm kiếm cho từ khoá:
-                    </span>
-              
-              {hasFilteredImageSearch && activeSearchImage && (
-                <div className="flex items-center gap-2 bg-[#fff5f4] px-2 py-1 border border-[#ee4d2d]/30 rounded-sm">
-                  <span className="text-[12px] text-gray-600">Hình ảnh:</span>
-                  <img src={activeSearchImage} alt="search" className="w-6 h-6 object-cover rounded border border-gray-200" />
-                  <CloseOutlined 
-                    className="text-gray-400 hover:text-red-500 cursor-pointer ml-1 text-[11px]" 
-                    onClick={() => {
-                      setHasFilteredImageSearch(false);
-                      setActiveSearchImage(null);
-                      setLocalImageProducts([]);
-                    }} 
-                  />
-                </div>
-              )}
+                    <SearchOutlined className='text-[#ee4d2d] mr-2' />
+                    <div className="flex items-center gap-3">
+                      <span>Kết quả tìm kiếm:</span>
+                      
+                      {((hasFilteredImageSearch && activeSearchImage) || (isImageSearch && activeSearchImage)) && (
+                        <div className="flex items-center gap-2 bg-[#fff5f4] px-2 py-1 border border-[#ee4d2d]/30 rounded-sm">
+                          <span className="text-[12px] text-gray-600">Hình ảnh:</span>
+                          <img src={activeSearchImage} alt="search" className="w-8 h-8 object-cover rounded border border-gray-200" />
+                          <CloseOutlined 
+                            className="text-gray-400 hover:text-red-500 cursor-pointer ml-1 text-[11px]" 
+                            onClick={() => {
+                              setHasFilteredImageSearch(false);
+                              setActiveSearchImage(null);
+                              setLocalImageProducts([]);
+                              if (isImageSearch) navigate('/search');
+                            }} 
+                          />
+                        </div>
+                      )}
 
-              {keyword && (
-                <div className="flex items-center gap-1.5 bg-[#fff5f4] px-2 py-1 border border-[#ee4d2d]/30 rounded-sm">
-                  <span className="text-[12px] text-gray-600">Từ khóa:</span>
-                  <span className="text-[13px] font-medium text-[#ee4d2d]">"{keyword}"</span>
-                  <CloseOutlined 
-                    className="text-gray-400 hover:text-red-500 cursor-pointer ml-1 text-[11px]" 
-                    onClick={() => {
-                      setKeyword('');
-                      setLocalSearchKeyword('');
-                    }} 
-                  />
-                </div>
-              )}
-            </div>
-          ) : null}
+                      {keyword && (
+                        <div className="flex items-center gap-1.5 bg-[#fff5f4] px-2 py-1 border border-[#ee4d2d]/30 rounded-sm">
+                          <span className="text-[12px] text-gray-600">Từ khóa:</span>
+                          <span className="text-[13px] font-medium text-[#ee4d2d]">"{keyword}"</span>
+                          <CloseOutlined 
+                            className="text-gray-400 hover:text-red-500 cursor-pointer ml-1 text-[11px]" 
+                            onClick={() => {
+                              setKeyword('');
+                              setLocalSearchKeyword('');
+                              navigate('/search');
+                            }} 
+                          />
+                        </div>
+                      )}
+                    </div>
                   </>
                 ) : mode === 'flash-sale' ? (
                   <>
@@ -625,8 +647,8 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
           )}
 
           <div className={`flex flex-col lg:flex-row justify-between items-center mb-6 gap-4 p-3 rounded-sm sticky top-0 z-10 transition-all duration-300 ${isScrolled ? 'bg-white shadow-md border-b border-gray-200' : 'bg-gray-50 border border-gray-100 shadow-sm'}`}>
-             <div className="flex gap-2 items-center flex-wrap">
-                <span className="text-gray-500 text-sm mr-2 hidden sm:inline-block">Sắp xếp:</span>
+             <div className="flex gap-2 items-center w-full">
+                <span className="text-gray-500 text-sm mr-2 whitespace-nowrap">Sắp xếp:</span>
                 <Button type={currentType === 'new' ? 'primary' : 'default'} onClick={() => handleFilterChange('new')} className={currentType === 'new' ? 'bg-[#ee4d2d] border-[#ee4d2d]' : ''}>Mới nhất</Button>
                 <Button type={currentType === 'bestselling' ? 'primary' : 'default'} onClick={() => handleFilterChange('bestselling')} className={currentType === 'bestselling' ? 'bg-[#ee4d2d] border-[#ee4d2d]' : ''}>Bán chạy</Button>
                 <Button type={currentType === 'favor' ? 'primary' : 'default'} onClick={() => handleFilterChange('favor')} className={currentType === 'favor' ? 'bg-blue-500 border-blue-500 text-white hover:!bg-blue-600' : ''} icon={<HeartFilled />}>Yêu thích</Button>
@@ -642,9 +664,7 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
                    ]} 
                    className={currentPrice ? 'border-[#ee4d2d] rounded-md' : ''}
                 />
-             </div>
-             
-             <div className="w-full lg:w-[350px] flex items-center">
+                 <div className="w-full flex items-center">
                 <Input
                   value={localSearchKeyword}
                   onChange={(e) => setLocalSearchKeyword(e.target.value)}
@@ -666,6 +686,9 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
                   }
                 />
              </div>
+             </div>
+             
+            
           </div>
 
        {mode !== 'search' && (   (hasFilteredImageSearch && activeSearchImage) || keyword ? (

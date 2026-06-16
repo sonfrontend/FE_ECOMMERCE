@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Button,
   Input,
@@ -56,6 +56,7 @@ const { Title, Text } = Typography;
 
 const AppHeader: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
   
   // --- STATES QUẢN LÝ MENU & MODAL ---
@@ -66,6 +67,16 @@ const AppHeader: React.FC = () => {
   
   // --- STATES TÌM KIẾM ---
   const [searchKeyword, setSearchKeyword] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const q = params.get('q');
+    if (q) {
+      setSearchKeyword(q);
+    } else {
+      setSearchKeyword('');
+    }
+  }, [location.search]);
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   
@@ -171,18 +182,18 @@ const AppHeader: React.FC = () => {
   };
 
   const notificationContent = (
-    <div className='w-80 max-h-96 flex flex-col'>
-      <div className='flex justify-between items-center mb-2 px-2'>
-        <Text strong>Thông báo mới nhận</Text>
+    <div className='w-[400px] max-h-[500px] flex flex-col'>
+      <div className='flex justify-between items-center mb-2 px-4 pt-2'>
+        <Text strong className='text-base'>Thông báo mới nhận</Text>
         <Button type='link' size='small' onClick={handleMarkAllAsRead}>Đánh dấu đã đọc</Button>
       </div>
-      <div className='overflow-y-auto flex-1'>
+      <div className='overflow-y-auto flex-1 pb-2'>
         <List
           itemLayout='horizontal'
           dataSource={notifications}
           renderItem={(item) => (
             <List.Item 
-              className={`cursor-pointer px-3 py-2 border-b border-gray-100 hover:bg-gray-50 transition-colors ${!item.isRead ? 'bg-blue-50/30' : ''}`}
+              className={`cursor-pointer !px-5 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${!item.isRead ? 'bg-blue-50/30' : ''}`}
               onClick={() => handleMarkAsRead(item.id)}
             >
               <List.Item.Meta
@@ -632,87 +643,40 @@ const AppHeader: React.FC = () => {
       </Modal>
 
       {/* Modal: Tìm kiếm Hình ảnh AI */}
-      <Modal
-        title={
-          <Flex align='center' gap={10}>
-            <PictureOutlined className='text-[#ee4d2d]' />
-            <span className='font-bold text-lg'>Tìm kiếm bằng hình ảnh</span>
-          </Flex>
-        }
-        open={isCameraModalOpen}
-        onCancel={() => {
-          setIsCameraModalOpen(false);
-          handleRemoveImage();
-        }}
-        footer={null}
-        centered
-        destroyOnClose
-        width={500}
-      >
-        <div className='py-4'>
-          {!previewImage ? (
-            <Dragger
-              accept='image/*'
-              fileList={fileList}
-              maxCount={1}
-              beforeUpload={async (file) => {
-                const isImage = file.type.startsWith('image/');
-                if (!isImage) {
-                  message.error(`${file.name} không phải là hình ảnh!`);
-                  return Upload.LIST_IGNORE;
-                }
-                const isLt5M = file.size / 1024 / 1024 < 5;
-                if (!isLt5M) {
-                  message.error('Hình ảnh phải nhỏ hơn 5MB!');
-                  return Upload.LIST_IGNORE;
-                }
-                try {
-                  const base64Url = await getBase64(file as unknown as Blob);
-                  setPreviewImage(base64Url);
-                  setFileList([file]);
-                  message.success('Tải ảnh lên thành công! Bấm nút bên dưới để tìm.');
-                } catch (err) {
-                  message.error('Không thể xử lý hình ảnh này.');
-                }
-                return false;
-              }}
-              onRemove={handleRemoveImage}
-              className='py-12 bg-gray-50 rounded-2xl border-dashed border-2 hover:border-[#ee4d2d] transition-all'
-            >
-              <p className='ant-upload-drag-icon'>
-                <InboxOutlined className='text-[#ee4d2d] text-6xl' />
-              </p>
-              <Title level={5} className='mt-5'>Kéo thả ảnh vào đây hoặc bấm để chọn</Title>
-              <Text className='text-gray-500 block mt-2'>
-                Hệ thống AI sẽ tự nhận diện trang phục và gợi ý món đồ tương tự.
-              </Text>
-              <Tag color='processing' className='mt-4'>Hỗ trợ: JPG, PNG, WEBP (Tối đa 5MB)</Tag>
-            </Dragger>
-          ) : (
-            <div className='flex flex-col items-center justify-center'>
-              <div className='relative group border-2 border-dashed border-gray-200 rounded-2xl p-2 bg-white shadow-inner'>
-                <img src={previewImage} alt="preview" className='max-h-[300px] rounded-xl object-contain shadow-md' />
-                <Button 
-                  type="primary" danger shape="circle" icon={<DeleteOutlined />} 
-                  onClick={handleRemoveImage}
-                  className='absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg'
-                />
+      <Modal open={isCameraModalOpen} onCancel={() => { setIsCameraModalOpen(false); handleRemoveImage(); }} title={<span className="text-lg">Tìm kiếm bằng hình ảnh</span>} footer={null} destroyOnClose centered width={450}>
+        <div className='pt-2'>
+          <Upload.Dragger
+            name='image'
+            multiple={false}
+            showUploadList={false}
+            beforeUpload={async (file) => {
+              const base64 = await getBase64(file);
+              setPreviewImage(base64);
+              setFileList([file]);
+              return false; // Prevent auto upload
+            }}
+            className='bg-gray-50'
+          >
+            {previewImage ? (
+              <div className='relative w-full h-[250px] p-2'>
+                <img src={previewImage} alt='preview' className='w-full h-full object-contain rounded-md' />
+                <div className='absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center rounded-md'>
+                  <Text className='text-white font-medium'>Nhấp hoặc kéo thả ảnh khác để thay đổi</Text>
+                </div>
               </div>
-              <Text className='text-gray-500 mt-4 mb-6 block text-center'>
-                AI đã sẵn sàng phân tích hình ảnh này.
-              </Text>
-              <Space size='middle' className='w-full justify-center'>
-                <Button size='large' icon={<DeleteOutlined />} onClick={handleRemoveImage} disabled={loadingSearch}>
-                  Chọn ảnh khác
-                </Button>
-                <Button 
-                  type='primary' size='large' icon={<SearchOutlined />} 
-                  className='bg-[#ee4d2d] hover:!bg-[#f05d40] border-none px-10 font-bold'
-                  onClick={handleExecuteImageSearch} loading={loadingSearch}
-                >
-                  TÌM KIẾM NGAY
-                </Button>
-              </Space>
+            ) : (
+              <div className='py-8 flex flex-col items-center justify-center'>
+                <p className='ant-upload-drag-icon mb-4'><InboxOutlined className='text-4xl text-[#ee4d2d]' /></p>
+                <p className='ant-upload-text font-medium text-gray-700 mb-2'>Nhấp hoặc kéo thả hình ảnh vào khu vực này</p>
+                <p className='ant-upload-hint text-gray-500 text-xs px-8'>Hỗ trợ các định dạng JPG, PNG, JPEG. Kích thước tối đa 5MB.</p>
+              </div>
+            )}
+          </Upload.Dragger>
+
+          {fileList.length > 0 && (
+            <div className='mt-5 flex justify-end gap-3 border-t pt-4'>
+              <Button size='large' icon={<DeleteOutlined />} onClick={handleRemoveImage} disabled={loadingSearch}>Xóa ảnh</Button>
+              <Button type='primary' size='large' icon={<SearchOutlined />} className='bg-[#ee4d2d]' onClick={handleExecuteImageSearch} loading={loadingSearch}>Tìm kiếm ngay</Button>
             </div>
           )}
         </div>

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Form, Input, Select, Checkbox, Radio, Space, Button, Typography, message, Skeleton, Modal } from 'antd';
 import http from '@/apis/http';
 import { PaymentMethod } from '@/contants/PaymentMethod.enum';
+import { getImageUrl } from '@/utils/imageUrl';
 
 
 const { Title, Text } = Typography;
@@ -44,6 +45,11 @@ const Checkout: React.FC = () => {
   // Shipping fees state
   const [shippingFeesList, setShippingFeesList] = useState<any[]>([]);
 
+  // Address Book state
+  const [userAddresses, setUserAddresses] = useState<any[]>([]);
+  const [isAddressModalVisible, setIsAddressModalVisible] = useState(false);
+  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
+
 
   
   // Lấy selectedRowKeys từ Router State
@@ -59,7 +65,29 @@ const Checkout: React.FC = () => {
     fetchActiveVouchers();
     fetchActivePromotion();
     fetchShippingFees();
+    fetchUserAddresses();
   }, [selectedRowKeys, navigate]);
+
+  useEffect(() => {
+    const currentProvince = checkoutForm.getFieldValue('province');
+    if (currentProvince && shippingFeesList.length > 0) {
+      handleProvinceChange(currentProvince);
+    }
+  }, [shippingFeesList]);
+
+  const fetchUserAddresses = async () => {
+    try {
+      const res = await http.get('/api/UserAddress');
+      setUserAddresses(res.data);
+      // Auto fill default address
+      const defaultAddr = res.data.find((a: any) => a.isDefault);
+      if (defaultAddr) {
+        handleSelectAddress(defaultAddr);
+      }
+    } catch (error) {
+      console.log('User not logged in or no addresses');
+    }
+  };
 
   const fetchShippingFees = async () => {
     try {
@@ -128,11 +156,22 @@ const Checkout: React.FC = () => {
   const total = subtotal + shippingFee - finalDiscountAmount;
 
   const handleProvinceChange = (value: string) => {
-    const feeConfig = shippingFeesList.find(f => f.provinceName === value);
+    if (!value) {
+      setShippingFee(0);
+      return;
+    }
+    
+    // Nếu shippingFeesList chưa load kịp thì defer việc xử lý lại cho useEffect
+    if (shippingFeesList.length === 0) return;
+
+    const feeConfig = shippingFeesList.find(f => f.provinceName?.toLowerCase() === value?.toLowerCase());
+    
     if (feeConfig) {
+      // Ensure the form value exactly matches the select option label case (e.g. 'Hồ Chí Minh' instead of 'HỒ CHÍ MINH')
+      checkoutForm.setFieldsValue({ province: feeConfig.provinceName });
       setShippingFee(feeConfig.fee);
     } else {
-      setShippingFee(0); // Default fee if not configured
+      setShippingFee(0); // Để 0 đồng nếu chưa có tỉnh hoặc không tìm thấy
     }
   };
 
@@ -165,6 +204,45 @@ const Checkout: React.FC = () => {
     setIsVoucherModalVisible(false);
   };
 
+  const handleSelectAddress = (addr: any) => {
+    const nameParts = addr.recipientName.split(' ');
+    const lastName = nameParts.pop() || '';
+    const firstName = nameParts.join(' ') || '';
+    
+    let address = addr.address || '';
+    let ward = '';
+    let province = '';
+    
+    const parts = address.split(', ').map((p: string) => p.trim());
+    if (parts.length >= 3) {
+      province = parts.pop() || '';
+      ward = parts.pop() || '';
+      address = parts.join(', ');
+    } else if (parts.length === 2) {
+      province = parts.pop() || '';
+      address = parts[0];
+    }
+    
+    checkoutForm.setFieldsValue({
+      firstName,
+      lastName,
+      phoneNumber: addr.phoneNumber,
+      email: addr.email,
+      address: address,
+      ward: ward,
+      province: province
+    });
+    
+    setSelectedAddressId(addr.id);
+    
+    if (province) {
+      handleProvinceChange(province);
+    }
+    
+    setIsAddressModalVisible(false);
+    message.success('Đã điền thông tin từ Sổ địa chỉ');
+  };
+
   const handleConfirmOrder = async (values: any) => {
     try {
       setIsSubmitting(true);
@@ -184,7 +262,32 @@ const Checkout: React.FC = () => {
 
       const response = await http.post('/api/Order', payload);
       
+      // Save address to address book if checked
+      if (values.saveAddress) {
+        try {
+          await http.post('/api/UserAddress', {
+            recipientName: values.firstName + ' ' + values.lastName,
+            phoneNumber: values.phoneNumber,
+            email: values.email,
+            address: fullAddress,
+            isDefault: true
+          });
+        } catch (err) {
+          console.error('Failed to save address', err);
+        }
+      }
+      
       window.dispatchEvent(new Event('cart-updated'));
+
+      // Thông báo cho Admin
+      try {
+        await http.post('/api/Notification/notify-admin', {
+          actionCode: 'CHECKOUT',
+          details: `Đơn hàng #${response.data.orderId || ''} trị giá ${total.toLocaleString('vi-VN')}đ`
+        });
+      } catch (err) {
+        console.error('Failed to notify admin', err);
+      }
 
       if (values.paymentMethod === PaymentMethod.VNPAY) {
         // Gọi API VNPay và chuyển hướng
@@ -219,7 +322,12 @@ const Checkout: React.FC = () => {
             
             {/* Cột trái: Form thông tin */}
             <div className='flex-2'>
-              <Title level={5} className='mb-4 uppercase tracking-wider text-gray-700'>Thông tin thanh toán</Title>
+              <div className='flex justify-between items-center mb-4'>
+                <Title level={5} className='uppercase tracking-wider text-gray-700 !mb-0'>Thông tin thanh toán</Title>
+                <Button type='primary' ghost onClick={() => setIsAddressModalVisible(true)}>
+                  Chọn thông tin địa chỉ
+                </Button>
+              </div>
               
               <div className='flex gap-4'>
                 <Form.Item name='firstName' label='Tên' className='flex-1' rules={[{ required: true, message: 'Nhập tên' }]}>
@@ -282,15 +390,20 @@ const Checkout: React.FC = () => {
                 </div>
 
                 <div className='flex flex-col gap-4 mb-4 border-b pb-4'>
-                  {cartItems.map(item => (
-                    <div key={item.id} className='flex justify-between items-start text-sm text-gray-600'>
-                      <div className='flex-1 pr-4'>
-                        {item.product.productName} × <span className='font-bold text-gray-800'>{item.quantity}</span>
-                        <div className='text-xs text-gray-400 mt-1'>Màu: {item.product.color}, Size: {item.product.size}</div>
+                  {cartItems.map((item, index) => (
+                    <div key={index} className='flex justify-between items-center py-3 border-b border-gray-200'>
+                      <div className='flex items-center gap-3'>
+                        <div className='w-12 h-16 shrink-0 border border-gray-200 rounded overflow-hidden'>
+                          <img src={getImageUrl(item.product.imageUrl) ?? ''} alt={item.product.productName} className='w-full h-full object-cover' />
+                        </div>
+                        <div>
+                          <span className='text-gray-700 text-sm'>{item.product.productName} × <strong>{item.quantity}</strong></span>
+                          <div className='text-xs text-gray-400 mt-1'>
+                            Màu: {item.product.color}, Size: {item.product.size}
+                          </div>
+                        </div>
                       </div>
-                      <div className='font-bold text-gray-800'>
-                        {new Intl.NumberFormat('vi-VN').format(item.product.price * item.quantity)}VNĐ
-                      </div>
+                      <span className='font-bold text-gray-800 whitespace-nowrap ml-4'>{new Intl.NumberFormat('vi-VN').format(item.product.price * item.quantity)}VNĐ</span>
                     </div>
                   ))}
                 </div>
@@ -425,6 +538,7 @@ const Checkout: React.FC = () => {
                     className={`flex items-center justify-between p-4 border rounded-lg ${isEligible ? 'bg-white border-[#ee4d2d] hover:bg-orange-50 cursor-pointer' : 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed'}`}
                     onClick={() => isEligible && handleSelectVoucher(voucher.code)}
                   >
+
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="bg-[#ee4d2d] text-white px-2 py-1 rounded text-xs font-bold uppercase">{voucher.code}</span>
@@ -446,7 +560,45 @@ const Checkout: React.FC = () => {
               })
             ) : (
               <div className="text-center py-8 text-gray-500">
-                Chưa có mã giảm giá nào.
+                Bạn chưa có mã giảm giá nào.
+              </div>
+            )}
+          </div>
+        </Modal>
+
+        <Modal
+          title="Chọn địa chỉ giao hàng"
+          open={isAddressModalVisible}
+          onCancel={() => setIsAddressModalVisible(false)}
+          footer={
+            <Button 
+              type="dashed" 
+              block 
+              className="mt-4"
+              onClick={() => navigate('/manage', { state: { tab: '4' } })}
+            >
+              Thêm / Chỉnh sửa thông tin địa chỉ
+            </Button>
+          }
+        >
+          <div className="flex flex-col gap-3">
+            {userAddresses.length > 0 ? (
+              userAddresses.map(addr => (
+                <div 
+                  key={addr.id} 
+                  className={`border p-3 rounded cursor-pointer transition-all ${selectedAddressId === addr.id ? 'border-[#82b541] shadow-md bg-[#f6faf0] border-2' : 'hover:border-primary border-gray-200'}`} 
+                  onClick={() => handleSelectAddress(addr)}
+                >
+                  <div className="font-bold mb-1">{addr.recipientName} {addr.isDefault && <span className="text-primary text-xs ml-2 border border-primary px-1 rounded">Mặc định</span>}</div>
+                  <div className="text-gray-600 text-sm mb-1"><span className="font-medium text-gray-700">SĐT:</span> {addr.phoneNumber}</div>
+                  {addr.email && <div className="text-gray-600 text-sm mb-1"><span className="font-medium text-gray-700">Email:</span> {addr.email}</div>}
+                  <div className="text-gray-500 text-sm"><span className="font-medium text-gray-700">Địa chỉ:</span> {addr.address}</div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-gray-500 mb-4">Bạn chưa lưu địa chỉ nào trong Sổ địa chỉ.</p>
+                <p className="text-sm text-gray-400">Gợi ý: Hãy điền thông tin ở form bên ngoài và tick chọn <b>"Lưu thông tin giao hàng"</b> để lưu lại nhé!</p>
               </div>
             )}
           </div>

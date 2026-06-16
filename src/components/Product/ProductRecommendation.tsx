@@ -43,7 +43,7 @@ const ProductRecommendation: React.FC = () => {
         <div className="flex items-center space-x-2">
           <span className="text-2xl md:text-3xl">✨</span>
           <Title level={3} className="!text-[#ee4d2d] !m-0 font-bold italic tracking-wider">
-            GỢI Ý CHO BẠN
+            RECOMMENDATIONS FOR YOU
           </Title>
         </div>
       </div>

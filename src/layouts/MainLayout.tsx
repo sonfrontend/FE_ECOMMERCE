@@ -4,8 +4,6 @@ import { Outlet } from 'react-router-dom';
 import AppHeader from '../components/Header/Header';
 import Footer from './components/Footer';
 import FloatingContact from '../components/FloatingContact/FloatingContact';
-import LiveChatWidget from '../components/LiveChatWidget';
-import AiChatWidget from '../components/AiChatWidget';
 
 const { Content } = Layout;
 
@@ -46,8 +44,6 @@ const MainLayout = () => {
         {/* Advanced Footer */}
           <Footer />
         <FloatingContact />
-        <LiveChatWidget />
-        <AiChatWidget />
       </Layout>
     </>
   );

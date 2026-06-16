@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Card, Divider, Tag } from 'antd';
-import { UserOutlined, GoogleOutlined } from '@ant-design/icons';
+import { Form, Input, Button, Divider, Tag, Avatar, Row, Col } from 'antd';
+import { UserOutlined, GoogleOutlined, SafetyCertificateOutlined, EditOutlined } from '@ant-design/icons';
 import http from '@/apis/http';
 import { HttpStatusCode } from '@/contants/httpStatusCode.enum';
 import { toast } from 'react-toastify';
@@ -12,45 +12,41 @@ export default function AccountManage() {
     if (userInfoStr) {
       try {
         const userInfo = JSON.parse(userInfoStr);
-        if (userInfo.googleId) {
-          return 'Google';
-        }
-      } catch {
-        /* empty */
-      }
+        if (userInfo.googleId) return 'Google';
+      } catch {}
     }
     return 'System';
   });
 
   const [form] = Form.useForm();
+  const [userInfoState, setUserInfoState] = useState<any>({});
 
   useEffect(() => {
     const userInfoStr = localStorage.getItem('userInfo');
     if (userInfoStr) {
       try {
         const userInfo = JSON.parse(userInfoStr);
+        setUserInfoState(userInfo);
         form.setFieldsValue({
           userName: userInfo.userName || '',
           email: userInfo.email || '',
           fullName: userInfo.fullName || '',
           phoneNumber: userInfo.phoneNumber || ''
         });
-      } catch (e) {
-        console.error('Failed to parse userInfo', e);
-      }
+      } catch (e) {}
     }
   }, [form]);
 
-  /* ------------------- HANDLERS ------------------- */
-
-  const handleUpdateAccount = async (values) => {
+  const handleUpdateAccount = async (values: any) => {
     try {
       if (isLoading) return;
       setIsLoading(true);
       const res = await http.put('/api/User/update-profile', values);
       if (res.status === HttpStatusCode.Ok) {
         localStorage.setItem('userInfo', JSON.stringify(res.data));
+        setUserInfoState(res.data);
         toast.success('Cập nhật thông tin tài khoản thành công!');
+        window.dispatchEvent(new Event('storage'));
       }
     } catch (error) {
       toast.error('Lỗi: ' + error);
@@ -59,84 +55,128 @@ export default function AccountManage() {
     }
   };
 
-  /* ------------------- RENDER ------------------- */
   return (
-    <Card title='Quản lý tài khoản của bạn' className='w-full shadow-sm rounded-lg'>
-      <Form layout='vertical' form={form} onFinish={handleUpdateAccount}>
-        {/* Phương thức đăng nhập */}
-        <Form.Item label={<span>Phương thức đăng nhập</span>} className='mb-4!'>
-          {loginProvider === 'Google' ? (
-            <Tag color='error' icon={<GoogleOutlined />} className='px-3 py-1 text-sm'>
-              Tài khoản Google
-            </Tag>
-          ) : (
-            <Tag color='blue' icon={<UserOutlined />} className='px-3 py-1 text-sm'>
-              Tài khoản Hệ thống
-            </Tag>
-          )}
-        </Form.Item>
+    <div className='p-8 h-full bg-white'>
+      <div className='mb-8 border-b border-gray-100 pb-4'>
+        <h2 className='text-2xl font-bold text-gray-800 mb-1'>Hồ sơ của tôi</h2>
+        <p className='text-gray-500'>Quản lý thông tin hồ sơ để bảo mật tài khoản</p>
+      </div>
 
-        <Form.Item
-          label={<span>Tên đăng nhập</span>}
-          name='userName'
-          hasFeedback
-          rules={[{ required: true, type: 'string', message: 'Vui lòng nhập tên đăng nhập' }]}
-          className='mb-2!'
-        >
-          <Input className='w-full' style={{ width: '100%' }} />
-        </Form.Item>
-        <Form.Item label='Họ và tên' name='fullName' className='mb-2!'>
-          <Input placeholder='Nhập họ và tên' />
-        </Form.Item>
-        <Form.Item
-          label={<span>Email</span>}
-          name='email'
-          hasFeedback
-          rules={[
-            { required: true, message: 'Vui lòng nhập email' },
-            {
-              type: 'email',
-              message: 'Email không đúng định dạng Vd:abc@gmail.com'
-            }
-          ]}
-          className='mb-2!'
-        >
-          <Input className='w-full' style={{ width: '100%' }} />
-        </Form.Item>
-        <Form.Item label='Số điện thoại' name='phoneNumber'>
-          <Input placeholder='0123456789' />
-        </Form.Item>
-        {loginProvider === 'System' && (
-          <>
-            <Divider>Đổi mật khẩu</Divider>
-            <Form.Item
-              label={<span>Mật khẩu</span>}
-              name='password'
-              hasFeedback
-              rules={[
-                {
-                  pattern: /^(?=.*[A-Z]).+$/,
-                  message: 'Mật khẩu phải có ít nhất 1 chữ hoa'
-                },
-                {
-                  pattern: /^(?=.*[a-z]).+$/,
-                  message: 'Mật khẩu phải có ít nhất 1 chữ thường'
-                },
-                {
-                  pattern: /^(?=.*\d).+$/,
-                  message: 'Mật khẩu phải có ít nhất 1 số'
-                }
-              ]}
-              className='mb-4!'
-            >
-              <Input.Password className='w-full' style={{ width: '100%' }} />
+      <div className='flex flex-row gap-12'>
+        <div className='flex-1'>
+          <Form layout='vertical' form={form} onFinish={handleUpdateAccount} className='max-w-2xl'>
+            <Row gutter={24}>
+              <Col span={24}>
+                <Form.Item label={<span className='text-gray-600 font-medium'>Phương thức đăng nhập</span>} className='mb-6'>
+                  {loginProvider === 'Google' ? (
+                    <div className='flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-lg w-max'>
+                      <GoogleOutlined className='text-red-500 text-xl' />
+                      <span className='font-medium text-red-700'>Tài khoản Google</span>
+                    </div>
+                  ) : (
+                    <div className='flex items-center gap-2 p-3 bg-blue-50 border border-blue-100 rounded-lg w-max'>
+                      <SafetyCertificateOutlined className='text-blue-500 text-xl' />
+                      <span className='font-medium text-blue-700'>Tài khoản Hệ thống</span>
+                    </div>
+                  )}
+                </Form.Item>
+              </Col>
+
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label={<span className='text-gray-600 font-medium'>Tên đăng nhập</span>}
+                  name='userName'
+                  rules={[{ required: true, message: 'Vui lòng nhập tên đăng nhập' }]}
+                >
+                  <Input size='large' className='rounded-lg hover:border-blue-400 focus:border-blue-500' disabled={loginProvider === 'Google'} />
+                </Form.Item>
+              </Col>
+
+              <Col xs={24} md={12}>
+                <Form.Item 
+                  label={<span className='text-gray-600 font-medium'>Họ và tên</span>} 
+                  name='fullName'
+                >
+                  <Input size='large' className='rounded-lg hover:border-blue-400 focus:border-blue-500' placeholder='Nhập họ và tên' />
+                </Form.Item>
+              </Col>
+
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label={<span className='text-gray-600 font-medium'>Email</span>}
+                  name='email'
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập email' },
+                    { type: 'email', message: 'Email không đúng định dạng' }
+                  ]}
+                >
+                  <Input size='large' className='rounded-lg hover:border-blue-400 focus:border-blue-500' disabled={loginProvider === 'Google'} />
+                </Form.Item>
+              </Col>
+
+              <Col xs={24} md={12}>
+                <Form.Item 
+                  label={<span className='text-gray-600 font-medium'>Số điện thoại</span>} 
+                  name='phoneNumber'
+                >
+                  <Input size='large' className='rounded-lg hover:border-blue-400 focus:border-blue-500' placeholder='0123456789' />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            {loginProvider === 'System' && (
+              <>
+                <div className='my-6 border-t border-gray-100'></div>
+                <h3 className='text-lg font-semibold text-gray-800 mb-4'>Đổi mật khẩu <span className="text-sm font-normal text-gray-400">(Tuỳ chọn)</span></h3>
+                <Form.Item
+                  label={<span className='text-gray-600 font-medium'>Mật khẩu mới</span>}
+                  name='password'
+                  rules={[
+                    { pattern: /^(?=.*[A-Z]).+$/, message: 'Mật khẩu phải có ít nhất 1 chữ hoa' },
+                    { pattern: /^(?=.*[a-z]).+$/, message: 'Mật khẩu phải có ít nhất 1 chữ thường' },
+                    { pattern: /^(?=.*\d).+$/, message: 'Mật khẩu phải có ít nhất 1 số' }
+                  ]}
+                >
+                  <Input.Password size='large' className='rounded-lg max-w-md hover:border-blue-400 focus:border-blue-500' placeholder='Bỏ trống nếu không muốn đổi' />
+                </Form.Item>
+              </>
+            )}
+
+            <Form.Item className='mt-8'>
+              <Button 
+                type='primary' 
+                htmlType='submit' 
+                size='large'
+                loading={isLoading} 
+                className='px-8 rounded-lg bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transition-all h-12 text-base font-medium'
+              >
+                Lưu Thay Đổi
+              </Button>
             </Form.Item>
-          </>
-        )}
-        <Button type='primary' htmlType='submit' loading={isLoading} disabled={isLoading}>
-          Lưu cập nhật
-        </Button>
-      </Form>
-    </Card>
+          </Form>
+        </div>
+
+        {/* Right side avatar section */}
+        <div className='flex flex-col items-center justify-start w-64 pt-8 border-l border-gray-100 pl-12'>
+          <div className='relative mb-4 group cursor-pointer'>
+            <Avatar 
+              size={120} 
+              icon={<UserOutlined />} 
+              src={userInfoState?.avatar} 
+              className='border-4 border-white shadow-lg bg-blue-500 flex-shrink-0' 
+            />
+            <div className='absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity'>
+              <span className='text-white flex flex-col items-center text-sm font-medium'>
+                <EditOutlined className='text-xl mb-1' />
+                Đổi ảnh
+              </span>
+            </div>
+          </div>
+          <div className='text-center text-gray-500 text-xs mt-2 leading-relaxed'>
+            Dung lượng file tối đa 1 MB<br/>Định dạng: .JPEG, .PNG
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

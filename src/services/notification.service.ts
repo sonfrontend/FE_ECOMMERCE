@@ -22,5 +22,9 @@ export const notificationService = {
     markAllAsRead: async () => {
         const response = await http.put('/api/Notification/read-all');
         return response.data;
+    },
+    notifyAdminAction: async (actionCode: string, details: string) => {
+        const response = await http.post('/api/Notification/notify-admin', { actionCode, details });
+        return response.data;
     }
 };
