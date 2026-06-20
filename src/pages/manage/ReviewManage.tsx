@@ -43,9 +43,9 @@ export default function ReviewManage() {
   };
 
   useEffect(() => {
-    if (activeTab === '1') fetchPendingReviews();
-    else fetchMyReviews();
-  }, [activeTab]);
+    fetchPendingReviews();
+    fetchMyReviews();
+  }, []);
 
   const handleOpenReviewModal = (item: any) => {
     setCurrentReviewItem(item);

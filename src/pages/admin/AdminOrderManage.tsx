@@ -204,7 +204,7 @@ const OrderManage: React.FC = () => {
             )}
 
               {record.status === 'Disputed' && (
-                <Button size="small" onClick={async () => {
+                <Button size="small" danger onClick={async () => {
                   try {
                     const res = await http.get(`/api/Dispute/order/${record.id}/complaint`);
                     setCurrentComplaint(res.data);
@@ -222,6 +222,7 @@ const OrderManage: React.FC = () => {
             {(record.status === 'PendingResolution') && (
               <Tag color="orange" className='m-0'>Chờ User xác nhận</Tag>
             )}
+            
           </Space>
         )
       }
@@ -301,7 +302,7 @@ const OrderManage: React.FC = () => {
                 {record.orderItems.map((item: any, idx: number) => (
                   <div key={idx} className="flex items-center gap-4 bg-gray-50 p-2 rounded-lg border border-gray-100">
                     <img 
-                      src={getImageUrl(item.imageUrl, 'complants')} 
+                      src={getImageUrl(item.imageUrl)} 
                       alt={item.productName} 
                       className="w-16 h-16 object-cover rounded border border-gray-200"
                     />

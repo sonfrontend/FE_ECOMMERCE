@@ -1,8 +1,9 @@
 import React from 'react';
 import { Typography } from 'antd';
 import { HeartFilled, HeartOutlined } from '@ant-design/icons';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getImageUrl } from '@/utils/imageUrl';
+import { handleQuickBuy } from '@/utils/quickBuy';
 
 const { Text } = Typography;
 
@@ -37,6 +38,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   onFavoriteClick,
   showFavoriteIcon = false
 }) => {
+  const navigate = useNavigate();
   const _originalPrice = originalPrice ?? currentPrice;
   const _discountPercentage = discountPercentage ?? (_originalPrice > 0 ? Math.round((1 - currentPrice / _originalPrice) * 100) : 0);
   const _reviewsCount = reviewsCount ?? 0;
@@ -45,7 +47,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   return (
     <Link
       to={`/product/${productId}`}
-      className='group flex flex-col cursor-pointer border border-gray-200 hover:border-[#ee4d2d] hover:-translate-y-1 transition-all bg-white relative rounded-lg overflow-hidden h-full shadow-sm hover:shadow-md'
+      className='group flex flex-col cursor-pointer border border-transparent hover:border-gray-300 hover:-translate-y-1 hover:shadow-md transition-all duration-300 bg-white relative rounded-lg overflow-hidden h-full'
     >
       <div className='relative w-full aspect-[4/5] bg-[#f5f5f5] overflow-hidden'>
         <img
@@ -108,15 +110,22 @@ const ProductCard: React.FC<ProductCardProps> = ({
               </div>
             ) : <div />}
             <span className='text-gray-500 text-[10px] md:text-[11px] ml-1 whitespace-nowrap'>
-              Đã bán {soldQuantity}
+              Sold {soldQuantity}
             </span>
           </div>
           <div className='flex items-center justify-between'>
             <span className='text-[#ee4d2d] font-bold text-[16px] md:text-[18px] leading-none'>
               {currentPrice > 0 ? `${new Intl.NumberFormat('vi-VN').format(currentPrice)} đ` : 'Liên hệ'}
             </span>
-            <div className='bg-[#ee4d2d] text-white text-[11px] md:text-[13px] font-medium px-3 py-1.5 rounded shadow-sm whitespace-nowrap hover:bg-[#d73f22] transition-colors'>
-              Mua Ngay
+            <div 
+              className='bg-[#ee4d2d] text-white text-[11px] md:text-[13px] font-medium px-3 py-1.5 rounded shadow-sm whitespace-nowrap hover:bg-[#d73f22] transition-colors cursor-pointer'
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleQuickBuy(productId, navigate);
+              }}
+            >
+              BUY NOW
             </div>
           </div>
         </div>

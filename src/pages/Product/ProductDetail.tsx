@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { Breadcrumb, Button, Skeleton, message, Image, Rate, Avatar, Modal, Typography, Dropdown, Menu } from 'antd';
 import { HeartOutlined, HeartFilled, MessageOutlined, ShoppingCartOutlined, ShareAltOutlined, RobotOutlined, UserOutlined, RightOutlined, LeftOutlined, StarFilled, ClockCircleOutlined } from '@ant-design/icons';
 import http from '@/apis/http';
@@ -48,6 +48,7 @@ const ProductDetail: React.FC = () => {
   const { Title, Text, Paragraph } = Typography;
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [product, setProduct] = useState<ProductDetailData | null>(null);
   const [fbtProducts, setFbtProducts] = useState<any[]>([]);
   const [fbtLoading, setFbtLoading] = useState(false);
@@ -219,23 +220,7 @@ const ProductDetail: React.FC = () => {
     return () => clearTimeout(timer);
   }, [product]);
 
-  if (loading) {
-    return (
-      <div className='max-w-[1200px] mx-auto p-4 py-8'>
-        <Skeleton active paragraph={{ rows: 10 }} />
-      </div>
-    );
-  }
-
-  if (!product) {
-    return (
-      <div className='flex justify-center items-center h-96'>
-        <p className='text-gray-500 text-lg'>Không tìm thấy sản phẩm.</p>
-      </div>
-    );
-  }
-
-  const allVariants = [
+  const allVariants = product ? [
     {
       articleId: product.articleId,
       size: product.size,
@@ -246,66 +231,16 @@ const ProductDetail: React.FC = () => {
       imageUrl: product.imageUrl
     },
     ...(product.products || [])
-  ];
+  ] : [];
 
   const colors = Array.from(new Set(allVariants.map((v) => v.color).filter(Boolean)));
   const sizes = Array.from(new Set(allVariants.map((v) => v.size).filter(Boolean)));
 
-  const currentVariant =
-    allVariants.find((v) => v.color === selectedColor && v.size === selectedSize) || allVariants[0];
-
-  // Biến chứa Giá và Tồn kho của phân loại đang chọn
-  const displayPrice = currentVariant ? currentVariant.price : product.price;
-  const displayOriginalPrice = currentVariant && currentVariant.originalPrice ? currentVariant.originalPrice : (product.originalPrice || 0);
-  const displayStock = currentVariant ? currentVariant.stockQuantity : 0;
-
-  const origins = ['Việt Nam', 'Trung Quốc', 'Hàn Quốc'];
-  const stableIndex = product.articleId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 3;
-  const productOrigin = product.origin || origins[stableIndex];
-
-  const handleColorSelect = (color: string) => {
-    setSelectedColor(color);
-    const variantWithColor = allVariants.find((v) => v.color === color);
-    if (variantWithColor && variantWithColor.imageUrl) {
-      setMainImage(variantWithColor.imageUrl);
-    }
-  };
-
-  const handleAddToCart = async () => {
-    if (!currentVariant) {
-      message.error('Vui lòng chọn phân loại hàng');
-      return;
-    }
-
-    try {
-      await http.post('/api/Cart', {
-        articleId: currentVariant.articleId,
-        variantId: currentVariant.variantId,
-        quantity: quantity
-      });
-      message.success(`Đã thêm ${quantity} sản phẩm vào giỏ hàng`);
-      // Báo hiệu cho Header cập nhật giỏ hàng
-      window.dispatchEvent(new Event('cart-updated'));
-      
-      // Báo cho Admin
-      try {
-        await notificationService.notifyAdminAction('ADD_TO_CART', `${quantity} x ${currentVariant.articleId} - ${product.productName}`);
-      } catch (e) {
-        console.error('Failed to notify admin', e);
-      }
-
-      // AI Tracking: Lưu vào lịch sử khi thêm giỏ hàng
-      addAIHistory(currentVariant.articleId);
-      console.log('AI History: Added to cart', currentVariant.articleId);
-      
-    } catch (error: any) {
-      message.error(error.message || 'Vui lòng đăng nhập để thêm vào giỏ hàng!');
-    }
-  };
+  const currentVariant = product ? (allVariants.find((v) => v.color === selectedColor && v.size === selectedSize) || allVariants[0]) : null;
 
   const handleBuyNow = async () => {
     if (!currentVariant) {
-      message.error('Vui lòng chọn phân loại hàng');
+      message.error('Please select product variant');
       return;
     }
 
@@ -333,10 +268,76 @@ const ProductDetail: React.FC = () => {
       if (addedItem) {
         navigate('/checkout', { state: { selectedRowKeys: [addedItem.id] } });
       } else {
-        message.error('Lỗi khi chuẩn bị đơn hàng');
+        message.error('Error preparing order');
       }
     } catch (error: any) {
-      message.error(error.message || 'Vui lòng đăng nhập để mua hàng!');
+      message.error(error.message || 'Please log in to purchase!');
+    }
+  };
+
+  useEffect(() => {
+    if (location.state?.autoBuy && allVariants.length > 0 && currentVariant) {
+      handleBuyNow();
+      // Clear state to prevent loop
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [allVariants.length, currentVariant, location.state, location.pathname, navigate]);
+
+  if (loading) {
+    return (
+      <div className='max-w-[1200px] mx-auto p-4 py-8'>
+        <Skeleton active paragraph={{ rows: 10 }} />
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className='flex justify-center items-center h-96'>
+        <p className='text-gray-500 text-lg'>Product not found.</p>
+      </div>
+    );
+  }
+
+  // Biến chứa Giá và Tồn kho của phân loại đang chọn
+  const displayPrice = currentVariant ? currentVariant.price : product.price;
+  const displayOriginalPrice = currentVariant && currentVariant.originalPrice ? currentVariant.originalPrice : (product.originalPrice || 0);
+  const displayStock = currentVariant ? currentVariant.stockQuantity : 0;
+
+  const origins = ['VIETNAME', 'CHINA', 'SOUTH KOREA', 'JAPAN', 'USA', 'EUROPE'];
+  const stableIndex = product.articleId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 6;
+  const productOrigin = product.origin || origins[stableIndex];
+
+  const handleColorSelect = (color: string) => {
+    setSelectedColor(color);
+    const variantWithColor = allVariants.find((v) => v.color === color);
+    if (variantWithColor && variantWithColor.imageUrl) {
+      setMainImage(variantWithColor.imageUrl);
+    }
+  };
+
+  const handleAddToCart = async () => {
+    if (!currentVariant) {
+      message.error('Please select product variant');
+      return;
+    }
+
+    try {
+      await http.post('/api/Cart', {
+        articleId: currentVariant.articleId,
+        variantId: currentVariant.variantId,
+        quantity: quantity
+      });
+      message.success(`Added ${quantity} item(s) to cart`);
+      // Báo hiệu cho Header cập nhật giỏ hàng
+      window.dispatchEvent(new Event('cart-updated'));
+      
+      // AI Tracking: Lưu vào lịch sử khi thêm giỏ hàng
+      addAIHistory(currentVariant.articleId);
+      console.log('AI History: Added to cart', currentVariant.articleId);
+      
+    } catch (error: any) {
+      message.error(error.message || 'Please log in to add to cart!');
     }
   };
 
@@ -349,7 +350,7 @@ const ProductDetail: React.FC = () => {
         setProduct(prev => prev ? { ...prev, favoriteCount: res.data.favoriteCount } : null);
         message.success(res.data.message);
       } catch (error: any) {
-        message.error(error.message || 'Vui lòng đăng nhập để thao tác');
+        message.error(error.message || 'Please log in to perform this action');
       }
     }
   };
@@ -486,33 +487,33 @@ const ProductDetail: React.FC = () => {
                   </div>
                   <div className='w-[1px] h-[14px] bg-gray-300'></div>
                   <div className='flex items-center gap-1'>
-                    <span className='underline font-medium text-gray-900'>{reviewsData.totalReviews}</span> Đánh Giá
+                    <span className='underline font-medium text-gray-900'>{reviewsData.totalReviews}</span> Reviews
                   </div>
                 </>
               ) : (
                 <div className='flex items-center gap-1 text-gray-500'>
-                  Chưa đánh giá
+                  No reviews yet
                 </div>
               )}
               <div className='w-[1px] h-[14px] bg-gray-300'></div>
               <div className='flex items-center gap-1'>
-                <span className='text-gray-900 font-medium'>{product.soldQuantity || 0}</span> Đã Bán
+                <span className='text-gray-900 font-medium'>{product.soldQuantity || 0}</span> Sold
               </div>
               <div className='w-[1px] h-[14px] bg-gray-300'></div>
               <div className='flex items-center gap-1 text-gray-500'>
-                <HeartFilled className={product.favoriteCount && product.favoriteCount > 0 ? 'text-[#ee4d2d]' : 'text-gray-400'} /> Đã thích ({product.favoriteCount !== undefined ? product.favoriteCount : 0})
+                <HeartFilled className={product.favoriteCount && product.favoriteCount > 0 ? 'text-[#ee4d2d]' : 'text-gray-400'} /> Liked ({product.favoriteCount !== undefined ? product.favoriteCount : 0})
               </div>
             </div>
 
             <div className='text-[14px] text-gray-500 leading-relaxed mb-4 line-clamp-2'>
-              {product.description || 'Sản phẩm hiện chưa có mô tả chi tiết.'}
+              {product.description || 'No detailed description available for this product.'}
             </div>
 
             {/* Thông tin Xuất xứ & Loại vải */}
             <div className="flex gap-8 mb-4 text-[14px] text-gray-600 bg-gray-50 p-3 rounded-sm border border-gray-100">
-              <div><span className="font-medium text-gray-800">Xuất xứ:</span> {productOrigin}</div>
+              <div><span className="font-medium text-gray-800">Origin:</span> {productOrigin}</div>
               {product.fabricType && (
-                <div><span className="font-medium text-gray-800">Loại vải:</span> {product.fabricType}</div>
+                <div><span className="font-medium text-gray-800">Fabric Type:</span> {product.fabricType}</div>
               )}
             </div>
 
@@ -523,7 +524,7 @@ const ProductDetail: React.FC = () => {
                   <span className='text-yellow-300 mr-1'>⚡</span> FLASH SALE
                 </div>
                 <div className='flex items-center gap-2 text-white text-[13px]'>
-                  <span><ClockCircleOutlined /> KẾT THÚC TRONG</span>
+                  <span><ClockCircleOutlined /> ENDS IN</span>
                   <div className='flex gap-1 ml-1'>
                     <span className='bg-black text-white px-1.5 py-0.5 rounded-sm text-sm font-bold'>{String(timeLeft.hours).padStart(2, '0')}</span>
                     <span className='bg-black text-white px-1.5 py-0.5 rounded-sm text-sm font-bold'>{String(timeLeft.minutes).padStart(2, '0')}</span>
@@ -555,7 +556,7 @@ const ProductDetail: React.FC = () => {
               {/* Chọn Màu Sắc */}
               {colors.length > 0 && (
                 <div className='flex items-start'>
-                  <div className='w-[110px] text-gray-500 mt-2 shrink-0 capitalize'>Màu sắc</div>
+                  <div className='w-[110px] text-gray-500 mt-2 shrink-0 capitalize'>Color</div>
                   <div className='flex flex-wrap gap-2 flex-1'>
                     {colors.map((color) => {
                       const variantImg = allVariants.find((v) => v.color === color)?.imageUrl;
@@ -594,7 +595,7 @@ const ProductDetail: React.FC = () => {
               {sizes.length > 0 && (
                 <div className='flex items-start'>
                   <div className='w-[110px] text-gray-500 mt-2 shrink-0 capitalize'>
-                    Kích cỡ
+                    Size
                   </div>
                   <div className='flex flex-wrap gap-2 flex-1 items-center'>
                     {sizes.map((size) => {
@@ -623,7 +624,7 @@ const ProductDetail: React.FC = () => {
                       onClick={() => setIsSizeGuideVisible(true)}
                       className="text-[#ee4d2d] hover:underline text-[14px] bg-transparent border-none cursor-pointer p-0 ml-2 font-medium"
                     >
-                      Bảng size
+                      Size Guide
                     </button>
                   </div>
                 </div>
@@ -631,7 +632,7 @@ const ProductDetail: React.FC = () => {
 
               {/* Chọn Số Lượng */}
               <div className='flex items-center mt-2'>
-                <div className='w-[110px] text-gray-500 shrink-0 capitalize'>Số lượng</div>
+                <div className='w-[110px] text-gray-500 shrink-0 capitalize'>Quantity</div>
                 <div className='flex items-center'>
                   <div className='flex border border-gray-300 rounded-sm overflow-hidden'>
                     <button
@@ -653,7 +654,7 @@ const ProductDetail: React.FC = () => {
                       +
                     </button>
                   </div>
-                  <div className='text-gray-500 text-[14px] ml-5'>{displayStock} sản phẩm có sẵn</div>
+                  <div className='text-gray-500 text-[14px] ml-5'>{displayStock} pieces available</div>
                 </div>
               </div>
             </div>
@@ -666,21 +667,21 @@ const ProductDetail: React.FC = () => {
                 className='h-[48px] px-6 rounded-sm border-[#ee4d2d] bg-[#ffeceb] text-[#ee4d2d] font-medium text-[15px] hover:!bg-[#fdf0f0] hover:!border-[#ee4d2d] hover:!text-[#ee4d2d] shadow-none flex items-center gap-2'
                 onClick={handleAddToCart}
               >
-                Thêm Vào Giỏ Hàng
+                Add To Cart
               </Button>
               <Button
                 size='large'
                 className='h-[48px] px-8 rounded-sm bg-[#ee4d2d] text-white font-medium text-[15px] hover:!bg-[#f05d40] hover:!text-white border-none shadow-sm'
                 onClick={handleBuyNow}
               >
-                Mua Ngay
+                Buy Now
               </Button>
               <Dropdown
                 menu={{
                   items: [
                     {
                       key: 'admin',
-                      label: 'Hỗ trợ trực tuyến (Admin)',
+                      label: 'Live Support (Admin)',
                       icon: <UserOutlined />,
                       onClick: () => {
                         const url = window.location.origin + `/product/${product.articleId}`;
@@ -700,7 +701,7 @@ const ProductDetail: React.FC = () => {
                     },
                     {
                       key: 'ai',
-                      label: 'Nhắn với AI Chatbot',
+                      label: 'Chat with AI Chatbot',
                       icon: <RobotOutlined />,
                       onClick: () => {
                         const url = window.location.origin + `/product/${product.articleId}`;
@@ -727,7 +728,7 @@ const ProductDetail: React.FC = () => {
                   icon={<MessageOutlined className='text-[20px]' />}
                   className='h-[48px] px-6 rounded-sm border-gray-300 bg-white text-gray-700 font-medium text-[15px] hover:!border-[#ee4d2d] hover:!text-[#ee4d2d] shadow-none flex items-center gap-2'
                 >
-                  Nhắn tin
+                  Message
                 </Button>
               </Dropdown>
               <Button
@@ -743,7 +744,7 @@ const ProductDetail: React.FC = () => {
         {/* Thường được mua cùng (FBT) */}
         {(fbtLoading || (fbtProducts && fbtProducts.length > 0)) && (
           <div className='mt-4 bg-white p-6 shadow-sm rounded-sm min-h-[300px]'>
-            <div className='text-lg font-medium text-gray-800 mb-6 uppercase'>Thường được mua cùng</div>
+            <div className='text-lg font-medium text-gray-800 mb-6 uppercase'>Frequently Bought Together</div>
             {fbtLoading ? (
               <div className='grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4'>
                 {[1, 2, 3, 4, 5].map(i => (
@@ -788,7 +789,7 @@ const ProductDetail: React.FC = () => {
         {/* ĐÁNH GIÁ SẢN PHẨM                                                         */}
         {/* ========================================================================= */}
         <div className='mt-4 bg-white shadow-sm rounded-sm p-6 mb-8'>
-          <div className='text-lg font-medium text-gray-800 mb-6 uppercase'>Đánh giá sản phẩm</div>
+          <div className='text-lg font-medium text-gray-800 mb-6 uppercase'>Product Reviews</div>
 
           {reviewsLoading ? (
             <Skeleton active paragraph={{ rows: 3 }} />
@@ -803,13 +804,13 @@ const ProductDetail: React.FC = () => {
                   <Rate disabled value={reviewsData.averageRating} allowHalf className='text-[#ee4d2d] text-lg mt-1' />
                 </div>
                 <div className='text-gray-600'>
-                  Đã có {reviewsData.totalReviews} đánh giá
+                  {reviewsData.totalReviews} reviews
                 </div>
               </div>
 
               {/* Danh sách bình luận */}
               {reviews.length === 0 ? (
-                <div className='text-center text-gray-500 py-8'>Chưa có đánh giá nào cho sản phẩm này.</div>
+                <div className='text-center text-gray-500 py-8'>No reviews for this product yet.</div>
               ) : (
                 <div className='flex flex-col'>
                   {reviews.map((review) => (
@@ -833,7 +834,7 @@ const ProductDetail: React.FC = () => {
 
       </div>
       <Modal
-        title="Hướng dẫn chọn size"
+        title="Size Guide"
         open={isSizeGuideVisible}
         onCancel={() => setIsSizeGuideVisible(false)}
         footer={null}
@@ -842,11 +843,11 @@ const ProductDetail: React.FC = () => {
       >
         <div className="flex flex-col gap-6 max-h-[70vh] overflow-y-auto p-2">
           <div>
-            <div className="text-center font-medium mb-2">Bảng Size Nam</div>
+            <div className="text-center font-medium mb-2">Men's Size Guide</div>
             <img src="https://res.cloudinary.com/dss8hptah/image/upload/v1/size_nam.png" alt="Size Nam" className="w-full max-h-[35vh] object-contain rounded-md border border-gray-200" />
           </div>
           <div>
-            <div className="text-center font-medium mb-2">Bảng Size Nữ</div>
+            <div className="text-center font-medium mb-2">Women's Size Guide</div>
             <img src="https://res.cloudinary.com/dss8hptah/image/upload/v1/size_nu.png" alt="Size Nữ" className="w-full max-h-[35vh] object-contain rounded-md border border-gray-200" />
           </div>
         </div>

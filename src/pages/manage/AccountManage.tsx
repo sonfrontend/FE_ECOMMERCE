@@ -154,28 +154,7 @@ export default function AccountManage() {
               </Button>
             </Form.Item>
           </Form>
-        </div>
-
-        {/* Right side avatar section */}
-        <div className='flex flex-col items-center justify-start w-64 pt-8 border-l border-gray-100 pl-12'>
-          <div className='relative mb-4 group cursor-pointer'>
-            <Avatar 
-              size={120} 
-              icon={<UserOutlined />} 
-              src={userInfoState?.avatar} 
-              className='border-4 border-white shadow-lg bg-blue-500 flex-shrink-0' 
-            />
-            <div className='absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity'>
-              <span className='text-white flex flex-col items-center text-sm font-medium'>
-                <EditOutlined className='text-xl mb-1' />
-                Đổi ảnh
-              </span>
-            </div>
-          </div>
-          <div className='text-center text-gray-500 text-xs mt-2 leading-relaxed'>
-            Dung lượng file tối đa 1 MB<br/>Định dạng: .JPEG, .PNG
-          </div>
-        </div>
+      </div>
       </div>
     </div>
   );

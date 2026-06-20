@@ -6,6 +6,8 @@ import { HeartOutlined, HeartFilled, RightOutlined, DownOutlined, SearchOutlined
 import http from '@/apis/http';
 import { getFavorites, toggleFavorite } from '@/utils/favorite';
 import { getImageUrl } from '@/utils/imageUrl';
+import { handleQuickBuy } from '@/utils/quickBuy';
+import { getAIHistory } from '@/utils/aiHistory';
 
 const { Text } = Typography;
 
@@ -30,7 +32,7 @@ interface Category {
 }
 
 interface CategoryProductsProps {
-  mode?: 'category' | 'search' | 'flash-sale';
+  mode?: 'category' | 'search' | 'flash-sale' | 'recommended';
 }
 
 const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }) => {
@@ -266,6 +268,37 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
             }
             setTotalItems(fetchedData.length);
           }
+        } else if (mode === 'recommended') {
+          // Fetch recommended products
+          const res = await http.get('/api/Product/ai-recommendations');
+          
+          let fetchedData = res.data || []; // Note: The response for GET /ai-recommendations is directly an array of products, not res.data.data
+          const activeKw = keyword || queryParam;
+          
+          // Apply local filter/sort
+          if (activeKw) {
+            const lowerKw = activeKw.toLowerCase();
+            fetchedData = fetchedData.filter((p: any) => 
+              p.productName?.toLowerCase().includes(lowerKw) || 
+              p.description?.toLowerCase().includes(lowerKw)
+            );
+          }
+          
+          if (currentPrice === 'ins') {
+            fetchedData.sort((a: any,b: any) => (a.currentPrice || a.price || 0) - (b.currentPrice || b.price || 0));
+          } else if (currentPrice === 'des') {
+            fetchedData.sort((a: any,b: any) => (b.currentPrice || b.price || 0) - (a.currentPrice || a.price || 0));
+          } else if (currentType === 'bestselling') {
+            fetchedData.sort((a: any,b: any) => (b.soldQuantity || b.SoldQuantity || 0) - (a.soldQuantity || a.SoldQuantity || 0));
+          }
+
+          if (isNew) {
+            setProducts(fetchedData);
+          } else {
+            // Note: Currently recommendation endpoint doesn't support pagination, so we load all at once.
+            setProducts(prev => [...prev, ...fetchedData]);
+          }
+          setTotalItems(fetchedData.length);
         } else {
           let backendSortBy = '';
           if (currentType === 'bestselling') backendSortBy = 'best_selling';
@@ -472,8 +505,7 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
     return (
       <Link
         to={`/product/${product.productId}`}
-        key={product.productId}
-        className='group flex flex-col cursor-pointer border border-gray-200 shadow-sm hover:border-[#ee4d2d] hover:-translate-y-1 hover:shadow-md transition-all duration-300 bg-white relative rounded-md overflow-hidden'
+        className='group flex flex-col cursor-pointer border border-transparent hover:border-gray-300 hover:-translate-y-1 hover:shadow-md transition-all duration-300 bg-white relative rounded-md overflow-hidden'
       >
         <div className='relative w-full aspect-[3/4] overflow-hidden bg-[#f5f5f5]'>
           <img
@@ -514,14 +546,21 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
                   </div>
                 </div>
               ) : <div></div>}
-              <span className='text-gray-500 text-[10px] ml-2'>Đã bán {product.soldQuantity || product.SoldQuantity || 0}</span>
+              <span className='text-gray-500 text-[10px] ml-2'>Sold {product.soldQuantity || product.SoldQuantity || 0}</span>
             </div>
             <div className='flex items-center justify-between'>
               <span className='text-[#ee4d2d] font-bold text-[15px] leading-none'>
                 {new Intl.NumberFormat('vi-VN').format(priceToDisplay)}<span className='underline text-[10px] ml-0.5'>đ</span>
               </span>
-              <div className='bg-[#ee4d2d] text-white text-[10px] px-2 py-0.5 rounded shadow-sm whitespace-nowrap hover:bg-[#d73f22] transition-colors'>
-                Mua Ngay
+              <div 
+                className='bg-[#ee4d2d] text-white text-[10px] px-2 py-0.5 rounded shadow-sm whitespace-nowrap hover:bg-[#d73f22] transition-colors cursor-pointer'
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleQuickBuy((product as any).productId || (product as any).id || (product as any).articleId, navigate);
+                }}
+              >
+                Buy Now
               </div>
             </div>
           </div>
@@ -602,11 +641,11 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
                   <>
                     <SearchOutlined className='text-[#ee4d2d] mr-2' />
                     <div className="flex items-center gap-3">
-                      <span>Kết quả tìm kiếm:</span>
+                      <span>Search Results:</span>
                       
                       {((hasFilteredImageSearch && activeSearchImage) || (isImageSearch && activeSearchImage)) && (
                         <div className="flex items-center gap-2 bg-[#fff5f4] px-2 py-1 border border-[#ee4d2d]/30 rounded-sm">
-                          <span className="text-[12px] text-gray-600">Hình ảnh:</span>
+                          <span className="text-[12px] text-gray-600">Image:</span>
                           <img src={activeSearchImage} alt="search" className="w-8 h-8 object-cover rounded border border-gray-200" />
                           <CloseOutlined 
                             className="text-gray-400 hover:text-red-500 cursor-pointer ml-1 text-[11px]" 
@@ -622,7 +661,7 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
 
                       {keyword && (
                         <div className="flex items-center gap-1.5 bg-[#fff5f4] px-2 py-1 border border-[#ee4d2d]/30 rounded-sm">
-                          <span className="text-[12px] text-gray-600">Từ khóa:</span>
+                          <span className="text-[12px] text-gray-600">Keyword:</span>
                           <span className="text-[13px] font-medium text-[#ee4d2d]">"{keyword}"</span>
                           <CloseOutlined 
                             className="text-gray-400 hover:text-red-500 cursor-pointer ml-1 text-[11px]" 
@@ -639,7 +678,10 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
                 ) : mode === 'flash-sale' ? (
                   <>
                     <span className="text-[#ee4d2d] text-2xl font-bold italic mr-2">⚡ FLASH SALE</span>
-                    <span>Siêu ưu đãi giảm giá</span>
+                  </>
+                ) : mode === 'recommended' ? (
+                  <>
+                    <span className="text-[#ee4d2d] text-2xl font-bold mr-2">✨ RECOMMENDATIONS FOR YOU</span>
                   </>
                 ) : null}
               </div>
@@ -648,19 +690,19 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
 
           <div className={`flex flex-col lg:flex-row justify-between items-center mb-6 gap-4 p-3 rounded-sm sticky top-0 z-10 transition-all duration-300 ${isScrolled ? 'bg-white shadow-md border-b border-gray-200' : 'bg-gray-50 border border-gray-100 shadow-sm'}`}>
              <div className="flex gap-2 items-center w-full">
-                <span className="text-gray-500 text-sm mr-2 whitespace-nowrap">Sắp xếp:</span>
-                <Button type={currentType === 'new' ? 'primary' : 'default'} onClick={() => handleFilterChange('new')} className={currentType === 'new' ? 'bg-[#ee4d2d] border-[#ee4d2d]' : ''}>Mới nhất</Button>
-                <Button type={currentType === 'bestselling' ? 'primary' : 'default'} onClick={() => handleFilterChange('bestselling')} className={currentType === 'bestselling' ? 'bg-[#ee4d2d] border-[#ee4d2d]' : ''}>Bán chạy</Button>
-                <Button type={currentType === 'favor' ? 'primary' : 'default'} onClick={() => handleFilterChange('favor')} className={currentType === 'favor' ? 'bg-blue-500 border-blue-500 text-white hover:!bg-blue-600' : ''} icon={<HeartFilled />}>Yêu thích</Button>
+                <span className="text-gray-500 text-sm mr-2 whitespace-nowrap">Sort by:</span>
+                <Button type={currentType === 'new' ? 'primary' : 'default'} onClick={() => handleFilterChange('new')} className={currentType === 'new' ? 'bg-[#ee4d2d] border-[#ee4d2d]' : ''}>Newest</Button>
+                <Button type={currentType === 'bestselling' ? 'primary' : 'default'} onClick={() => handleFilterChange('bestselling')} className={currentType === 'bestselling' ? 'bg-[#ee4d2d] border-[#ee4d2d]' : ''}>Best Selling</Button>
+                <Button type={currentType === 'favor' ? 'primary' : 'default'} onClick={() => handleFilterChange('favor')} className={currentType === 'favor' ? 'bg-blue-500 border-blue-500 text-white hover:!bg-blue-600' : ''} icon={<HeartFilled />}>Favorite</Button>
                 <Select 
                    value={currentPrice === 'des' ? 'price_desc' : currentPrice === 'ins' ? 'price_asc' : undefined} 
                    onChange={(val) => handlePriceChange(val)} 
                    allowClear
-                   placeholder="Giá"
+                   placeholder="Price"
                    style={{ width: 180 }} 
                    options={[
-                     {label: 'Giá: Thấp đến Cao', value: 'price_asc'}, 
-                     {label: 'Giá: Cao đến Thấp', value: 'price_desc'}
+                     {label: 'Price: Low to High', value: 'price_asc'}, 
+                     {label: 'Price: High to Low', value: 'price_desc'}
                    ]} 
                    className={currentPrice ? 'border-[#ee4d2d] rounded-md' : ''}
                 />
@@ -675,7 +717,7 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
                     setLocalImageProducts([]);
                     setPage(1); 
                   }}
-                  placeholder={`Tìm trong ${mode === 'category' ? parentCategory?.name : 'danh mục'}...`}
+                  placeholder={`Search products in this category`}
                   className='rounded-full flex-1 bg-white border-gray-300 hover:border-[#ee4d2d] focus:border-[#ee4d2d]'
                   prefix={<SearchOutlined className='text-gray-400' />}
                   suffix={
@@ -693,11 +735,11 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
 
        {mode !== 'search' && (   (hasFilteredImageSearch && activeSearchImage) || keyword ? (
             <div className="flex items-center gap-3 mb-4 px-3 py-2 bg-white border border-[#ee4d2d]/30 rounded-sm shadow-sm">
-              <span className="text-gray-600 text-[13px]">Kết quả đang lọc theo:</span>
+              <span className="text-gray-600 text-[13px]">Search results for:</span>
               
               {hasFilteredImageSearch && activeSearchImage && (
                 <div className="flex items-center gap-2 bg-[#fff5f4] px-2 py-1 border border-[#ee4d2d]/30 rounded-sm">
-                  <span className="text-[12px] text-gray-600">Hình ảnh:</span>
+                  <span className="text-[12px] text-gray-600">Image:</span>
                   <img src={activeSearchImage} alt="search" className="w-6 h-6 object-cover rounded border border-gray-200" />
                   <CloseOutlined 
                     className="text-gray-400 hover:text-red-500 cursor-pointer ml-1 text-[11px]" 
@@ -712,7 +754,7 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
 
               {keyword && (
                 <div className="flex items-center gap-1.5 bg-[#fff5f4] px-2 py-1 border border-[#ee4d2d]/30 rounded-sm">
-                  <span className="text-[12px] text-gray-600">Từ khóa:</span>
+                  <span className="text-[12px] text-gray-600">Keyword:</span>
                   <span className="text-[13px] font-medium text-[#ee4d2d]">"{keyword}"</span>
                   <CloseOutlined 
                     className="text-gray-400 hover:text-red-500 cursor-pointer ml-1 text-[11px]" 
@@ -733,7 +775,7 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
           ) : (
             <>
               {products.length === 0 ? (
-                <div className='text-center text-gray-500 py-10'>Không tìm thấy sản phẩm nào trong danh mục này.</div>
+                <div className='text-center text-gray-500 py-10'>No products found in this category.</div>
               ) : (
                 <div className='grid grid-cols-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4'>
                   {products.map(renderProductCard)}
@@ -749,7 +791,7 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
               {!loadingMore && products.length > 0 && products.length >= totalItems && (
                 <div className='text-center text-gray-500 py-6 mt-8 border-t border-gray-200/60 w-full col-span-full'>
                   <span className='bg-gray-100 px-4 py-1.5 rounded-full text-sm shadow-sm'>
-                    Đã hiển thị tất cả sản phẩm
+                    All products displayed
                   </span>
                 </div>
               )}
@@ -765,15 +807,15 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
           <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 transition-all duration-300 ${isListening ? 'bg-red-100 scale-110 shadow-lg' : 'bg-gray-100'}`}>
             <AudioOutlined className={`text-4xl ${isListening ? 'text-[#ee4d2d]' : 'text-gray-400'}`} />
           </div>
-          <Typography.Title level={4} className='mb-2'>{isListening ? 'Đang nghe...' : 'Sẵn sàng'}</Typography.Title>
+          <Typography.Title level={4} className='mb-2'>{isListening ? 'Listening...' : 'Ready'}</Typography.Title>
           <Text className='text-gray-500 mb-6 min-h-[44px] block'>
-            {transcript || (isListening ? 'Hãy nói tên sản phẩm bạn muốn tìm' : 'Đang xử lý...')}
+            {transcript || (isListening ? 'Please speak the name of the product you want to find' : 'Processing...')}
           </Text>
         </div>
       </Modal>
 
       {/* Image Modal */}
-      <Modal open={isCameraModalOpen} onCancel={() => { setIsCameraModalOpen(false); handleRemoveImage(); }} title={<span className="text-lg">Tìm kiếm bằng hình ảnh</span>} footer={null} destroyOnClose centered width={450}>
+      <Modal open={isCameraModalOpen} onCancel={() => { setIsCameraModalOpen(false); handleRemoveImage(); }} title={<span className="text-lg">Search by Image</span>} footer={null} destroyOnClose centered width={450}>
         <div className='pt-2'>
           <Upload.Dragger
             name='image'
@@ -791,22 +833,22 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
               <div className='relative w-full h-[250px] p-2'>
                 <img src={previewImage} alt='preview' className='w-full h-full object-contain rounded-md' />
                 <div className='absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center rounded-md'>
-                  <Text className='text-white font-medium'>Nhấp hoặc kéo thả ảnh khác để thay đổi</Text>
+                  <Text className='text-white font-medium'>Click or drag and drop another image to change</Text>
                 </div>
               </div>
             ) : (
               <div className='py-8 flex flex-col items-center justify-center'>
                 <p className='ant-upload-drag-icon mb-4'><InboxOutlined className='text-4xl text-[#ee4d2d]' /></p>
-                <p className='ant-upload-text font-medium text-gray-700 mb-2'>Nhấp hoặc kéo thả hình ảnh vào khu vực này</p>
-                <p className='ant-upload-hint text-gray-500 text-xs px-8'>Hỗ trợ các định dạng JPG, PNG, JPEG. Kích thước tối đa 5MB.</p>
+                <p className='ant-upload-text font-medium text-gray-700 mb-2'>Click or drag and drop an image into this area</p>
+                <p className='ant-upload-hint text-gray-500 text-xs px-8'>Supports JPG, PNG, JPEG formats. Maximum size 5MB.</p>
               </div>
             )}
           </Upload.Dragger>
 
           {fileList.length > 0 && (
             <div className='mt-5 flex justify-end gap-3 border-t pt-4'>
-              <Button size='large' icon={<DeleteOutlined />} onClick={handleRemoveImage} disabled={loadingSearch}>Xóa ảnh</Button>
-              <Button type='primary' size='large' icon={<SearchOutlined />} className='bg-[#ee4d2d]' onClick={handleExecuteImageSearch} loading={loadingSearch}>Tìm kiếm ngay</Button>
+              <Button size='large' icon={<DeleteOutlined />} onClick={handleRemoveImage} disabled={loadingSearch}>Delete Image</Button>
+              <Button type='primary' size='large' icon={<SearchOutlined />} className='bg-[#ee4d2d]' onClick={handleExecuteImageSearch} loading={loadingSearch}>Search Now</Button>
             </div>
           )}
         </div>

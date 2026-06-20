@@ -30,104 +30,113 @@ const Register = () => {
   };
 
   return (
-    <Form
-      name='basic'
-      labelCol={{ span: 24 }}
-      wrapperCol={{ span: 24 }}
-      style={{ maxWidth: 600 }}
-      initialValues={{ remember: true }}
-      onFinish={onFinish}
-      onFinishFailed={onFinishFailed}
-      autoComplete='off'
-      layout='vertical'
-      variant='underlined'
-    >
-      <div className='flex justify-center p-2 gap-2 items-center'>
-        <h2 className='font-bold text-2xl'>Trello</h2>
+    <div className='w-full'>
+      <div className='mb-3 text-center'>
+        <h2 className='font-bold text-2xl text-gray-800 mb-1'>Đăng Ký</h2>
+        <p className='text-gray-500 text-sm'>Tạo tài khoản mới để trải nghiệm mua sắm</p>
       </div>
-      <Form.Item
-        label={<span>Tên đăng nhặp</span>}
-        name='userName'
-        hasFeedback
-        rules={[{ required: true, type: 'string', message: 'Vui lòng nhập tên đăng nhập' }]}
-        className='mb-2!'
-      >
-        <Input className='w-full' style={{ width: '100%' }} />
-      </Form.Item>
 
-      <Form.Item
-        label={<span>Email</span>}
-        name='email'
-        hasFeedback
-        rules={[
-          { required: true, message: 'Vui lòng nhập email' },
-          {
-            type: 'email',
-            message: 'Email không đúng định dạng Vd:abc@gmail.com'
-          }
-        ]}
-        className='mb-2!'
+      <Form
+        name='basic'
+        layout='vertical'
+        initialValues={{ remember: true }}
+        onFinish={onFinish}
+        onFinishFailed={onFinishFailed}
+        autoComplete='off'
+        size='large'
+        className='w-full'
       >
-        <Input className='w-full' style={{ width: '100%' }} />
-      </Form.Item>
+        <Form.Item
+          label={<span className='font-medium text-gray-700 text-sm'>Tên đăng nhập</span>}
+          name='userName'
+          hasFeedback
+          rules={[{ required: true, type: 'string', message: 'Vui lòng nhập tên đăng nhập!' }]}
+          className='mb-4'
+        >
+          <Input placeholder='Tên đăng nhập của bạn' className='rounded-md text-sm' />
+        </Form.Item>
 
-      <Form.Item
-        label={<span>Mật khẩu</span>}
-        name='password'
-        hasFeedback
-        rules={[
-          { required: true, message: 'Vui lòng nhập mật khẩu' },
-          {
-            pattern: /^(?=.*[A-Z]).+$/,
-            message: 'Mật khẩu phải có ít nhất 1 chữ hoa'
-          },
-          {
-            pattern: /^(?=.*[a-z]).+$/,
-            message: 'Mật khẩu phải có ít nhất 1 chữ thường'
-          },
-          {
-            pattern: /^(?=.*\d).+$/,
-            message: 'Mật khẩu phải có ít nhất 1 số'
-          }
-        ]}
-        className='mb-4!'
-      >
-        <Input.Password className='w-full' style={{ width: '100%' }} />
-      </Form.Item>
-
-      <Form.Item
-        name='confirm_password'
-        label={<span>Nhập lại mật khẩu</span>}
-        hasFeedback
-        rules={[
-          {
-            required: true,
-            message: 'Vui lòng nhập lại mật khẩu'
-          },
-          ({ getFieldValue }) => ({
-            validator(_, value) {
-              if (!value || getFieldValue('password') === value) {
-                return Promise.resolve();
-              }
-              return Promise.reject('Nhập khẩu không khớp');
+        <Form.Item
+          label={<span className='font-medium text-gray-700 text-sm'>Email</span>}
+          name='email'
+          hasFeedback
+          rules={[
+            { required: true, message: 'Vui lòng nhập email!' },
+            {
+              type: 'email',
+              message: 'Email không đúng định dạng (VD: abc@gmail.com)'
             }
-          })
-        ]}
-        className='mb-2!'
-      >
-        <Input.Password className='w-full' style={{ width: '100%' }} />
-      </Form.Item>
+          ]}
+          className='mb-4'
+        >
+          <Input placeholder='Email của bạn' className='rounded-md text-sm' />
+        </Form.Item>
 
-      <Form.Item className='mb-2! flex justify-center'>
-        <Link to='/login'>Đã có tài khoản!</Link>
-      </Form.Item>
+        <Form.Item
+          label={<span className='font-medium text-gray-700 text-sm'>Mật khẩu</span>}
+          name='password'
+          hasFeedback
+          rules={[
+            { required: true, message: 'Vui lòng nhập mật khẩu!' },
+            {
+              pattern: /^(?=.*[A-Z]).+$/,
+              message: 'Mật khẩu phải có ít nhất 1 chữ hoa'
+            },
+            {
+              pattern: /^(?=.*[a-z]).+$/,
+              message: 'Mật khẩu phải có ít nhất 1 chữ thường'
+            },
+            {
+              pattern: /^(?=.*\d).+$/,
+              message: 'Mật khẩu phải có ít nhất 1 số'
+            }
+          ]}
+          className='mb-4'
+        >
+          <Input.Password placeholder='Nhập mật khẩu' className='rounded-md text-sm' />
+        </Form.Item>
 
-      <Form.Item className='mb-2!'>
-        <Button block type='primary' htmlType='submit' className='border border-gray-100 py-2 px-4'>
-          Đăng ký
-        </Button>
-      </Form.Item>
-    </Form>
+        <Form.Item
+          name='confirm_password'
+          label={<span className='font-medium text-gray-700 text-sm'>Nhập lại mật khẩu</span>}
+          hasFeedback
+          dependencies={['password']}
+          rules={[
+            {
+              required: true,
+              message: 'Vui lòng nhập lại mật khẩu!'
+            },
+            ({ getFieldValue }) => ({
+              validator(_, value) {
+                if (!value || getFieldValue('password') === value) {
+                  return Promise.resolve();
+                }
+                return Promise.reject(new Error('Mật khẩu nhập lại không khớp!'));
+              }
+            })
+          ]}
+          className='mb-4'
+        >
+          <Input.Password placeholder='Xác nhận mật khẩu' className='rounded-md text-sm' />
+        </Form.Item>
+
+        <div className='flex justify-center mb-6 text-sm'>
+          <span className='text-gray-500 mr-1'>Đã có tài khoản?</span>
+          <Link to='/login' className='text-[#ee4d2d] hover:text-[#d73f22] font-medium'>Đăng nhập ngay</Link>
+        </div>
+
+        <Form.Item className='mb-0'>
+          <Button 
+            block 
+            type='primary' 
+            htmlType='submit' 
+            className='bg-[#ee4d2d] hover:!bg-[#d73f22] border-none h-11 text-sm font-medium rounded-md shadow-md shadow-orange-500/20'
+          >
+            Tạo tài khoản
+          </Button>
+        </Form.Item>
+      </Form>
+    </div>
   );
 };
 export default Register;

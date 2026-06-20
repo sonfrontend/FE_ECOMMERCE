@@ -11,30 +11,30 @@ const Footer: React.FC = () => {
     <footer className="bg-white border-t-4 border-[#ee4d2d] mt-6 pt-6 px-12 md:px-20 text-gray-600 text-sm">
       <Row gutter={[32, 32]} className="mb-2">
         <Col xs={24} sm={12} md={6}>
-          <Title level={5} className="!text-gray-800 uppercase !text-sm mb-4">CHĂM SÓC KHÁCH HÀNG</Title>
+          <Title level={5} className="!text-gray-800 uppercase !text-sm mb-4">CUSTOMER SERVICE</Title>
           <ul className="space-y-2">
-            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Trung Tâm Trợ Giúp</Link></li>
-            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Hướng Dẫn Mua Hàng</Link></li>
-            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Thanh Toán</Link></li>
-            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Vận Chuyển</Link></li>
-            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Trả Hàng & Hoàn Tiền</Link></li>
-            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Chăm Sóc Khách Hàng</Link></li>
+            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Help Center</Link></li>
+            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">How to Buy</Link></li>
+            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Payment</Link></li>
+            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Shipping</Link></li>
+            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Return & Refund</Link></li>
+            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Contact Us</Link></li>
           </ul>
         </Col>
 
         <Col xs={24} sm={12} md={6}>
-          <Title level={5} className="!text-gray-800 uppercase !text-sm mb-4">VỀ CHÚNG TÔI</Title>
+          <Title level={5} className="!text-gray-800 uppercase !text-sm mb-4">ABOUT US</Title>
           <ul className="space-y-2">
-            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Giới Thiệu Về Cửa Hàng</Link></li>
-            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Điều Khoản Cửa Hàng</Link></li>
-            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Chính Sách Bảo Mật</Link></li>
-            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Chính Hãng</Link></li>
-            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Liên Hệ Truyền Thông</Link></li>
+            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">About Store</Link></li>
+            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Store Policies</Link></li>
+            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Privacy Policy</Link></li>
+            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Authentic Guarantee</Link></li>
+            <li><Link href="#" className="text-gray-500 hover:text-[#ee4d2d]">Media Contact</Link></li>
           </ul>
         </Col>
 
         <Col xs={24} sm={12} md={6}>
-          <Title level={5} className="!text-gray-800 uppercase !text-sm mb-4">THANH TOÁN</Title>
+          <Title level={5} className="!text-gray-800 uppercase !text-sm mb-4">PAYMENT</Title>
           <div className="flex gap-2 flex-wrap mb-6">
             <div className="bg-white shadow p-2 rounded w-14 h-8 flex items-center justify-center"><img src="https://down-vn.img.susercontent.com/file/d4bbea4570b93bfd5fc652ca82a262a8" alt="Visa" /></div>
             <div className="bg-white shadow p-2 rounded w-14 h-8 flex items-center justify-center"><img src="https://down-vn.img.susercontent.com/file/a0a9062ebe19b45c1ae0506f16af5c16" alt="Mastercard" /></div>
@@ -42,7 +42,7 @@ const Footer: React.FC = () => {
             <div className="bg-white shadow p-2 rounded w-14 h-8 flex items-center justify-center"><img src="https://down-vn.img.susercontent.com/file/bc2a874caeee705449c164be385b796c" alt="COD" /></div>
           </div>
           
-          <Title level={5} className="!text-gray-800 uppercase !text-sm mb-4">ĐƠN VỊ VẬN CHUYỂN</Title>
+          <Title level={5} className="!text-gray-800 uppercase !text-sm mb-4">LOGISTICS</Title>
           <div className="flex gap-2 flex-wrap">
              <div className="bg-white shadow p-2 rounded w-14 h-8 flex items-center justify-center"><img src="https://down-vn.img.susercontent.com/file/vn-50009109-159200e3e365de418aae52b840f24185" alt="SPX" /></div>
              <div className="bg-white shadow p-2 rounded w-14 h-8 flex items-center justify-center"><img src="https://down-vn.img.susercontent.com/file/d10b0ec09f0322f9201a4f3daf378ed2" alt="GHN" /></div>
@@ -51,7 +51,7 @@ const Footer: React.FC = () => {
         </Col>
 
         <Col xs={24} sm={12} md={6}>
-          <Title level={5} className="!text-gray-800 uppercase !text-sm mb-4">THEO DÕI CHÚNG TÔI TRÊN</Title>
+          <Title level={5} className="!text-gray-800 uppercase !text-sm mb-4">FOLLOW US</Title>
           <ul className="space-y-3">
             <li>
               <Link href="https://m.me/lqson2001" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-[#ee4d2d] flex items-center gap-2">
@@ -67,9 +67,9 @@ const Footer: React.FC = () => {
         </Col>
       </Row>
       {/* <div className="border-t border-gray-200 pt-3 mt-3 flex flex-col md:flex-row justify-between items-center text-xs">
-        <Text className="text-gray-500 md:mb-0">© 2026 Cửa Hàng E-Commerce. Tất cả các quyền được bảo lưu.</Text>
+        <Text className="text-gray-500 md:mb-0">© 2026 E-Commerce Store. All Rights Reserved.</Text>
         <div className="text-gray-500 flex gap-4">
-           <span>Quốc gia & Khu vực: Việt Nam</span>
+           <span>Country & Region: Vietnam</span>
         </div>
       </div> */}
     </footer>

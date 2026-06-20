@@ -11,6 +11,7 @@ import UserVoucherManage from './UserVoucherManage';
 import AddressManage from './AddressManage';
 import FavoriteManage from './FavoriteManage';
 import ReviewManage from './ReviewManage';
+import Cart from '../Cart/Cart';
 
 const { Title, Text } = Typography;
 
@@ -38,6 +39,7 @@ export default function Manager() {
     { key: '1', icon: <UserOutlined />, label: 'Hồ sơ của tôi' },
     { key: '4', icon: <EnvironmentOutlined />, label: 'Địa chỉ nhận hàng' },
     { key: '2', icon: <ShoppingCartOutlined />, label: 'Đơn mua' },
+    { key: '7', icon: <ShoppingCartOutlined />, label: 'Giỏ hàng' },
     { key: '3', icon: <GiftOutlined />, label: 'Kho Voucher' },
     { key: '5', icon: <HeartOutlined />, label: 'Yêu thích' },
     { key: '6', icon: <StarOutlined />, label: 'Đánh giá' },
@@ -66,7 +68,7 @@ export default function Manager() {
                 onClick={(e) => {
                   if (e.key !== 'back') setActiveTab(e.key);
                 }}
-                className='border-r-0 border-none px-2 custom-user-menu [&_.ant-menu-item-selected]:bg-blue-50 [&_.ant-menu-item-selected]:text-blue-600 [&_.ant-menu-item-selected]:font-semibold [&_.ant-menu-item]:rounded-lg [&_.ant-menu-item]:h-11'
+                className='border-r-0 border-none px-2 custom-user-menu [&_.ant-menu-item-selected]:bg-blue-50 [&_.ant-menu-item-selected]:text-blue-600 [&_.ant-menu-item-selected]:font-semibold [&_.ant-menu-item]:rounded-lg [&_.ant-menu-item]:h-11 [&_.ant-menu-item]:!pl-4 [&_.ant-menu-item]:!pr-4 [&_.ant-menu-title-content]:text-left'
               />
             </div>
           </div>
@@ -76,6 +78,7 @@ export default function Manager() {
         <div className='flex-1 bg-white rounded-2xl shadow-sm min-h-[600px] border border-gray-100'>
           {activeTab === '1' && <AccountManage />}
           {activeTab === '2' && <div className='-mt-8 rounded-2xl overflow-hidden'><OrderHistory /></div>}
+          {activeTab === '7' && <div className='rounded-2xl overflow-hidden'><Cart isEmbedded={true} /></div>}
           {activeTab === '3' && <div className='p-8'><UserVoucherManage setActiveTab={setActiveTab} /></div>}
           {activeTab === '4' && <div className='p-8'><AddressManage /></div>}
           {activeTab === '5' && <div className='p-8'><FavoriteManage /></div>}

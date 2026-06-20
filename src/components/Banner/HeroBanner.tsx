@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Carousel, Typography, Button } from 'antd';
 import http from '@/apis/http';
 import { useNavigate } from 'react-router-dom';
+import { getImageUrl } from '@/utils/imageUrl';
 
 const { Title, Text } = Typography;
 
@@ -13,9 +14,9 @@ const HeroBanner: React.FC = () => {
   const defaultBanners = [
     {
       id: 'shop-1',
-      title: 'BỘ SƯU TẬP MỚI',
-      description: 'Phong cách tối giản, nâng tầm diện mạo của bạn.',
-      imageUrl: 'http://localhost:5000/images/banners/normal.png',
+      title: 'NEW COLLECTION',
+      description: 'Minimalist style, elevating your appearance.',
+      imageUrl: getImageUrl('normal.png'),
     },
   ];
 
@@ -30,7 +31,7 @@ const HeroBanner: React.FC = () => {
              id: p.id,
              title: p.title,
              description: p.description,
-             imageUrl: `http://localhost:5000/images/banners/${p.imageUrl}`,
+             imageUrl:getImageUrl(p.imageUrl),
              discountPercentage: p.discountPercentage
           }));
           setPromotions(fetchedPromotions);
@@ -104,10 +105,10 @@ const HeroBanner: React.FC = () => {
 
                 {banner.discountPercentage > 0 ? (
                   <div className="bg-[#ee4d2d] text-white px-6 py-2 md:px-8 md:py-3 rounded-full text-sm md:text-lg font-bold uppercase tracking-wider shadow-lg">
-                    Giảm {banner.discountPercentage}% Toàn Đơn
+                    Save {banner.discountPercentage}% On All Orders
                   </div>
                 ): <div className="bg-[#ee4d2d] text-white px-6 py-2 md:px-8 md:py-3 rounded-full text-sm md:text-lg font-bold uppercase tracking-wider shadow-lg">
-                    MUA NGAY
+                    BUY NOW
                   </div>}
               </div>
             )}

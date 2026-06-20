@@ -186,9 +186,16 @@ const AdminVoucherManage: React.FC = () => {
     },
     {
       title: 'Số lượng phát hành',
-      dataIndex: 'quantity',
-      key: 'quantity',
-      render: (val: number) => <Tag color="blue">{new Intl.NumberFormat('vi-VN').format(val)}</Tag>
+      key: 'quantityInfo',
+      render: (_: any, record: any) => (
+        <div className="flex flex-col gap-1">
+          <Tag color="cyan" className="m-0 text-center">Tổng đã tạo: {new Intl.NumberFormat('vi-VN').format(record.totalQuantity || record.quantity)}</Tag>
+          <Tag color="purple" className="m-0 text-center">Đã cấp (User): {new Intl.NumberFormat('vi-VN').format(record.givenQuantity || 0)}</Tag>
+          <Tag color={record.remainingQuantity <= 0 ? "orange" : "blue"} className="m-0 text-center">
+            Còn lại: {new Intl.NumberFormat('vi-VN').format(record.remainingQuantity !== undefined ? record.remainingQuantity : record.quantity)}
+          </Tag>
+        </div>
+      )
     },
     {
       title: 'Trạng thái',

@@ -1,4 +1,4 @@
-import { Button, Flex, Form, Input } from 'antd';
+import { Button, Flex, Form, Input, Divider } from 'antd';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import http from '@/apis/http';
@@ -85,58 +85,70 @@ const Login = () => {
   };
 
   return (
-    <Form
-      name='basic'
-      labelCol={{ span: 24 }}
-      wrapperCol={{ span: 24 }}
-      style={{ maxWidth: 600 }}
-      initialValues={{ remember: true }}
-      onFinish={onFinish}
-      // onFinishFailed={onFinishFailed}
-      autoComplete='off'
-      layout='vertical'
-      variant='underlined'
-    >
-      <div className='flex justify-center p-2 gap-2 items-center'>
-        <h2 className='font-bold text-2xl'>Trello</h2>
+    <div className='w-full'>
+      <div className='mb-3 text-center'>
+        <h2 className='font-bold text-2xl text-gray-800 mb-1'>Đăng Nhập</h2>
+        <p className='text-gray-500 text-sm'>Vui lòng đăng nhập để tiếp tục mua sắm</p>
       </div>
-      <Form.Item label='Tên đăng nhập' name='userName' className='mb-2!'>
-        <Input className='w-full' style={{ width: '100%' }} />
-      </Form.Item>
 
-      <Form.Item label='Mật khẩu' name='password' className='mb-2!'>
-        <Input.Password className='w-full' style={{ width: '100%' }} />
-      </Form.Item>
-
-      <Form.Item className='mb-2!'>
-        <Flex justify='space-between' align='center'>
-          <a href=''>Quên mật khẩu</a>
-          <Link to='/register'>Chưa có tài khoản</Link>
-        </Flex>
-      </Form.Item>
-
-      <Form.Item className='mb-2!'>
-        <Button block type='primary' htmlType='submit' className='border border-gray-100 py-2 px-4' loading={isLoading}>
-          Đăng nhập
-        </Button>
-      </Form.Item>
-      <Form.Item className='mb-2!'>
-        <Flex justify='center' align='center'>
-          <span>or</span>
-        </Flex>
-      </Form.Item>
-      <Form.Item className='mb-2!'>
-        <Button 
-          block 
-          icon={<GoogleOutlined />} 
-          size="large" 
-          onClick={handleGoogleLogin}
-          className="flex items-center justify-center font-medium"
+      <Form
+        name='basic'
+        layout='vertical'
+        initialValues={{ remember: true }}
+        onFinish={onFinish}
+        autoComplete='off'
+        size='large'
+        className='w-full'
+      >
+        <Form.Item 
+          label={<span className='font-medium text-gray-700 text-sm'>Tên đăng nhập</span>} 
+          name='userName' 
+          rules={[{ required: true, message: 'Vui lòng nhập tên đăng nhập!' }]}
+          className='mb-4'
         >
-          Tiếp tục với Google
-        </Button>
-      </Form.Item>
-    </Form>
+          <Input placeholder='Nhập tên đăng nhập của bạn' className='rounded-md text-sm' />
+        </Form.Item>
+
+        <Form.Item 
+          label={<span className='font-medium text-gray-700 text-sm'>Mật khẩu</span>} 
+          name='password'
+          rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
+          className='mb-4'
+        >
+          <Input.Password placeholder='Nhập mật khẩu' className='rounded-md text-sm' />
+        </Form.Item>
+
+        <Flex justify='space-between' align='center' className='mb-6 text-sm'>
+          <a href='#' className='text-[#ee4d2d] hover:text-[#d73f22] font-medium'>Quên mật khẩu?</a>
+          <Link to='/register' className='text-gray-500 hover:text-gray-800 font-medium'>Đăng ký tài khoản</Link>
+        </Flex>
+
+        <Form.Item className='mb-4'>
+          <Button 
+            block 
+            type='primary' 
+            htmlType='submit' 
+            loading={isLoading}
+            className='bg-[#ee4d2d] hover:!bg-[#d73f22] border-none h-11 text-sm font-medium rounded-md shadow-md shadow-orange-500/20'
+          >
+            Đăng nhập
+          </Button>
+        </Form.Item>
+
+        <Divider plain className='text-gray-400 border-gray-200 text-xs my-3'>HOẶC</Divider>
+
+        <Form.Item className='mb-0'>
+          <Button 
+            block 
+            icon={<GoogleOutlined className="text-lg" />} 
+            onClick={handleGoogleLogin}
+            className="flex items-center justify-center font-medium h-11 text-sm text-gray-700 border-gray-300 hover:!border-gray-400 hover:!text-gray-800 rounded-md"
+          >
+            Tiếp tục với Google
+          </Button>
+        </Form.Item>
+      </Form>
+    </div>
   );
 };
 export default Login;

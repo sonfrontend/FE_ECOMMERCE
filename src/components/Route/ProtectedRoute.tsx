@@ -9,12 +9,12 @@ export default function ProtectedRoute({ role }: { role?: string }) {
   const userInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
   const isAdmin = userInfo?.roles?.includes('Admin');
   if (!isAdmin) {
-    return <Navigate to='' replace />;
+    return <Navigate to='/' replace />;
   }
   }
 
   if (!accessToken) {
-    return <Navigate to='/login' replace />;
+    return <Navigate to='/' replace />;
   }
 
   try {
@@ -23,11 +23,11 @@ export default function ProtectedRoute({ role }: { role?: string }) {
     const isTokenExpired = decodedToken.exp < Date.now() / 1000;
     if (isTokenExpired) {
       localStorage.removeItem('token');
-      return <Navigate to='/login' replace />;
+      return <Navigate to='/' replace />;
     }
   } catch {
     localStorage.removeItem('token');
-    return <Navigate to='/login' replace />;
+    return <Navigate to='/' replace />;
   }
   return <Outlet />;
 }

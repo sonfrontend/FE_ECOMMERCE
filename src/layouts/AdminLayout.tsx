@@ -9,7 +9,11 @@ import {
   ArrowLeftOutlined,
   DollarOutlined,
   MessageOutlined,
-  BellOutlined
+  BellOutlined,
+  FolderOutlined,
+  StarOutlined,
+  NotificationOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import * as signalR from '@microsoft/signalr';
@@ -37,6 +41,9 @@ export default function AdminLayout() {
     if (path.includes('/admin/wallets')) return 'wallets';
     if (path.includes('/admin/shipping-fees')) return 'shipping-fees';
     if (path.includes('/admin/chat')) return 'chat';
+    if (path.includes('/admin/reviews')) return 'reviews';
+    if (path.includes('/admin/promotions')) return 'promotions';
+    if (path.includes('/admin/disputes')) return 'disputes';
     return 'dashboard';
   };
 
@@ -136,12 +143,16 @@ export default function AdminLayout() {
     { key: 'dashboard', icon: <DashboardOutlined />, label: 'Tổng quan' },
     { key: 'users', icon: <UserOutlined />, label: 'Quản lý tài khoản' },
     { key: 'roles', icon: <KeyOutlined />, label: 'Quản lý phân quyền' },
+    { key: 'categories', icon: <FolderOutlined />, label: 'Quản lý danh mục' },
     { key: 'products', icon: <AppstoreOutlined />, label: 'Quản lý sản phẩm' },
     { key: 'orders', icon: <ShoppingCartOutlined />, label: 'Quản lý đơn hàng' },
     { key: 'vouchers', icon: <DollarOutlined />, label: 'Quản lý Voucher' },
     { key: 'payments', icon: <DollarOutlined />, label: 'Quản lý thanh toán' },
     { key: 'wallets', icon: <DollarOutlined />, label: 'Dòng tiền VNPAY' },
     { key: 'shipping-fees', icon: <ShoppingCartOutlined />, label: 'Quản lý phí ship' },
+    { key: 'reviews', icon: <StarOutlined />, label: 'Quản lý đánh giá' },
+    { key: 'promotions', icon: <NotificationOutlined />, label: 'Banner & Khuyến mãi' },
+    { key: 'disputes', icon: <ExclamationCircleOutlined />, label: 'Quản lý khiếu nại' },
     { key: 'chat', icon: <MessageOutlined />, label: 'Hỗ trợ khách hàng' },
     { type: 'divider' as const },
     { key: 'back', icon: <ArrowLeftOutlined />, label: 'Về trang bán hàng' }
@@ -167,7 +178,7 @@ export default function AdminLayout() {
       >
         <div className='h-[72px] flex items-center justify-center bg-[#0f172a] border-b border-gray-800'>
           <Title level={4} className='mb-0! font-bold mt-2 tracking-wide' style={{ color: '#60a5fa' }}>
-            ADMIN PANEL
+            QUẢN TRỊ HỆ THỐNG
           </Title>
         </div>
         <Menu

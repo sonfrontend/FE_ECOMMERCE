@@ -58,7 +58,7 @@ const Checkout: React.FC = () => {
   useEffect(() => {
     if (selectedRowKeys.length === 0) {
       message.error("Vui lòng chọn sản phẩm trước khi thanh toán");
-      navigate('/cart');
+      navigate('/manage', { state: { tab: '7' } });
       return;
     }
     fetchCartItems();
@@ -316,7 +316,7 @@ const Checkout: React.FC = () => {
   return (
     <div className='bg-[#f5f5f5] min-h-screen py-8 font-sans'>
       <div className='max-w-[1200px] mx-auto px-4'>
-        <Title level={3} className='mb-6 uppercase'>Thanh toán</Title>
+        <Title level={3} className='mb-6 uppercase text-gray-700'>Thanh toán</Title>
         <Form form={checkoutForm} layout='vertical' onFinish={handleConfirmOrder} initialValues={{ paymentMethod: PaymentMethod.COD }}>
           <div className='flex flex-col gap-8 laptop:flex-row'>
             

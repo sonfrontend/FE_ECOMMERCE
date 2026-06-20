@@ -80,7 +80,7 @@ const ProductGrid: React.FC = () => {
 
   const observer = React.useRef<IntersectionObserver | null>(null);
   const lastProductElementRef = React.useCallback(
-    (node: HTMLAnchorElement) => {
+    (node: HTMLDivElement) => {
       if (loading) return;
       if (observer.current) observer.current.disconnect();
       observer.current = new IntersectionObserver((entries) => {
@@ -115,13 +115,8 @@ const ProductGrid: React.FC = () => {
         setLoading(true);
 
         if (activeTab === 'recommended') {
-          const aiHistory = getAIHistory();
-          // Nếu có lịch sử thì gọi API recommend
-          const res = await http.post('/api/Product/recommendations', {
-            articleIds: aiHistory,
-            topK: 20
-          });
-          const { data } = res.data;
+          const res = await http.get('/api/Product/ai-recommendations');
+          const data = res.data;
           
           setProducts(data);
           setHasMore(false); // Gợi ý thường hiển thị 1 trang
@@ -249,7 +244,7 @@ const ProductGrid: React.FC = () => {
                 }`}
                 onClick={() => handleTabChange('all')}
               >
-                Tất cả sản phẩm
+                All Products
               </Button>
 
               {/* Nút Danh mục kèm Dropdown */}
@@ -264,7 +259,7 @@ const ProductGrid: React.FC = () => {
                 >
                   {activeTab === 'category' && selectedCategory !== 'all' ? (
                     <span className='flex items-center gap-2'>
-                      {categories.find((c) => c.id.toString() === selectedCategory)?.name || 'Danh mục'}
+                      {categories.find((c) => c.id.toString() === selectedCategory)?.name || 'Category'}
                       <span
                         className='text-xs hover:text-gray-200 cursor-pointer ml-1'
                         onClick={(e) => {
@@ -272,13 +267,13 @@ const ProductGrid: React.FC = () => {
                           e.preventDefault();
                           handleTabChange('all');
                         }}
-                        title='Xóa danh mục'
+                        title='Remove category'
                       >
                         ✕
                       </span>
                     </span>
                   ) : (
-                    'Danh mục ▼'
+                    'Category ▼'
                   )}
                 </Button>
               </Dropdown>
@@ -291,7 +286,7 @@ const ProductGrid: React.FC = () => {
                 }`}
                 onClick={() => handleTabChange('recommended')}
               >
-                Đề xuất
+                Recommended
               </Button>
               
               {/* Tab Yêu thích */}
@@ -303,7 +298,7 @@ const ProductGrid: React.FC = () => {
                 }`}
                 onClick={() => handleTabChange('favorite')}
               >
-                Yêu thích
+                Favorite
               </Button>
                <div className="flex gap-2 items-center">
                  <Button 
@@ -311,25 +306,25 @@ const ProductGrid: React.FC = () => {
                    onClick={() => {setSortOrder('newest'); setPage(1); setProducts([]);}} 
                    className={sortOrder === 'newest' ? 'bg-[#ee4d2d] border-[#ee4d2d]' : ''}
                  >
-                   Mới nhất
+                   Newest
                  </Button>
                  <Button 
                    type={sortOrder === 'best_selling' ? 'primary' : 'default'} 
                    onClick={() => {setSortOrder('best_selling'); setPage(1); setProducts([]);}} 
                    className={sortOrder === 'best_selling' ? 'bg-[#ee4d2d] border-[#ee4d2d]' : ''}
                  >
-                   Bán chạy
+                   Best Selling
                  </Button>
-                 <span className='text-gray-600 mr-2 whitespace-nowrap ml-4'>Sắp xếp theo</span>
+                 <span className='text-gray-600 mr-2 whitespace-nowrap ml-4'>Sort by</span>
                  <Select
-                   placeholder='Giá'
+                   placeholder='Price'
                    value={['asc', 'desc'].includes(sortOrder as string) ? sortOrder : undefined}
                    onChange={(val) => {setSortOrder(val); setPage(1); setProducts([]);}}
                    allowClear
                    className='w-40 h-8'
                    options={[
-                     { value: 'asc', label: 'Giá: Thấp đến Cao' },
-                     { value: 'desc', label: 'Giá: Cao đến Thấp' }
+                     { value: 'asc', label: 'Price: Low to High' },
+                     { value: 'desc', label: 'Price: High to Low' }
                    ]}
                  />
                </div>
@@ -366,7 +361,7 @@ const ProductGrid: React.FC = () => {
         <div className='flex justify-center mt-10 pb-8'>
           {loading && products.length > 0 && <Spin size='large' />}
           {!hasMore && products.length > 0 && (
-            <Text className='text-gray-400 tracking-wider uppercase text-xs font-semibold'>Đã tải hết sản phẩm</Text>
+            <Text className='text-gray-400 tracking-wider uppercase text-xs font-semibold'>All products loaded</Text>
           )}
         </div>
         </div>

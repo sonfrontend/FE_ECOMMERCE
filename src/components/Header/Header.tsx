@@ -184,8 +184,8 @@ const AppHeader: React.FC = () => {
   const notificationContent = (
     <div className='w-[400px] max-h-[500px] flex flex-col'>
       <div className='flex justify-between items-center mb-2 px-4 pt-2'>
-        <Text strong className='text-base'>Thông báo mới nhận</Text>
-        <Button type='link' size='small' onClick={handleMarkAllAsRead}>Đánh dấu đã đọc</Button>
+        <Text strong className='text-base'>Notifications</Text>
+        <Button type='link' size='small' onClick={handleMarkAllAsRead}>Mark all as read</Button>
       </div>
       <div className='overflow-y-auto flex-1 pb-2'>
         <List
@@ -208,7 +208,7 @@ const AppHeader: React.FC = () => {
               {!item.isRead && <div className='w-2 h-2 rounded-full bg-blue-500 ml-2' />}
             </List.Item>
           )}
-          locale={{ emptyText: 'Chưa có thông báo nào' }}
+          locale={{ emptyText: 'No notifications available' }}
         />
       </div>
     </div>
@@ -230,9 +230,9 @@ const AppHeader: React.FC = () => {
     try {
       await http.delete(`/api/Cart/${id}`);
       window.dispatchEvent(new Event('cart-updated'));
-      message.success('Đã xóa sản phẩm khỏi giỏ hàng');
+      message.success('Product removed from cart');
     } catch (error: any) {
-      message.error(error.message || 'Lỗi khi xóa sản phẩm');
+      message.error(error.message || 'Error occurred while removing product');
     }
   };
 
@@ -249,7 +249,7 @@ const AppHeader: React.FC = () => {
   const startVoiceSearch = () => {
     const SpeechRecognitionAPI = (window as Window).SpeechRecognition || (window as Window).webkitSpeechRecognition;
     if (!SpeechRecognitionAPI) {
-      message.error('Trình duyệt của bạn không hỗ trợ tìm kiếm giọng nói.');
+      message.error('My Browser is not supported for voice search. Please use a modern browser like Chrome or Edge.');
       return;
     }
 
@@ -290,7 +290,7 @@ const AppHeader: React.FC = () => {
       console.error('Speech recognition error', event.error);
       setIsListening(false);
       setIsMicModalOpen(false);
-      message.error('Có lỗi xảy ra khi nhận diện giọng nói.');
+      message.error('An error occurred while recognizing speech.');
     };
 
     recognition.start();
@@ -314,13 +314,13 @@ const AppHeader: React.FC = () => {
 
   const handleExecuteImageSearch = async () => {
     if (fileList.length === 0) {
-      message.error('Vui lòng tải ảnh lên trước!');
+      message.error('Please upload an image first!');
       return;
     }
 
     try {
       setLoadingSearch(true);
-      message.loading({ content: 'AI đang phân tích hình ảnh...', key: 'ai-search' });
+      message.loading({ content: 'AI is analyzing the image...', key: 'ai-search' });
 
       const formData = new FormData();
       // Nếu originFileObj undefined (do fileList[0] chính là raw File), ta dùng luôn fileList[0]
@@ -334,7 +334,7 @@ const AppHeader: React.FC = () => {
         }
       });
 
-      message.success({ content: 'Phân tích thành công!', key: 'ai-search', duration: 2 });
+      message.success({ content: 'AI analysis completed successfully!', key: 'ai-search', duration: 2 });
       setIsCameraModalOpen(false);
       handleRemoveImage();
       
@@ -342,7 +342,7 @@ const AppHeader: React.FC = () => {
       const imageUrl = URL.createObjectURL(fileToUpload as Blob);
       navigate('/search?image=true', { state: { products: res.data.data, activeSearchImage: imageUrl } }); 
     } catch (error) {
-      message.error({ content: 'Lỗi khi phân tích ảnh!', key: 'ai-search' });
+      message.error({ content: 'Error occurred while analyzing the image!', key: 'ai-search' });
     } finally {
       setLoadingSearch(false);
     }
@@ -358,13 +358,13 @@ const AppHeader: React.FC = () => {
   }, []);
 
   const [menuItems, setMenuItems] = useState<MenuProps['items']>([
-    { key: 'home', label: 'TRANG CHỦ', onClick: () => navigate('/') },
-    { key: 'loading', label: 'ĐANG TẢI...' }
+    { key: 'home', label: 'HOME', onClick: () => navigate('/') },
+    { key: 'loading', label: 'Loading...' }
   ]);
 
   const [mobileMenuItems, setMobileMenuItems] = useState<MenuProps['items']>([
-    { key: 'home', label: 'TRANG CHỦ', onClick: () => { navigate('/'); setMobileMenuOpen(false); } },
-    { key: 'loading', label: 'ĐANG TẢI...' }
+    { key: 'home', label: 'HOME', onClick: () => { navigate('/'); setMobileMenuOpen(false); } },
+    { key: 'loading', label: 'Loading...' }
   ]);
 
   useEffect(() => {
@@ -398,7 +398,7 @@ const AppHeader: React.FC = () => {
                 label: (
                   <div className="flex flex-col gap-5 p-6 bg-white cursor-default min-w-[500px] max-w-[85vw] lg:max-w-[1000px] max-h-[70vh] overflow-y-auto custom-scrollbar overflow-x-hidden shadow-2xl rounded-xl border border-gray-100 mx-4 my-2">
                      <div className="w-full shrink-0 border-b border-gray-100 pb-2">
-                       <h2 className="text-lg font-bold uppercase text-black mb-2">Danh mục {cat.name}</h2>
+                       <h2 className="text-lg font-bold uppercase text-black mb-2">Category {cat.name}</h2>
                        <div className="h-1 w-16 bg-green-500"></div>
                      </div>
                      <div className="flex gap-8 flex-wrap">
@@ -427,6 +427,7 @@ const AppHeader: React.FC = () => {
         setMenuItems([
           { key: 'home', label: 'HOME', onClick: () => navigate('/') },
           { key: 'flashsale', label: <span className="text-[#ee4d2d]">FLASH SALE</span>, onClick: () => navigate('/flash-sale') },
+          { key: 'recommended', label: <span className="text-[#ee4d2d]">Recommendations</span>, onClick: () => navigate('/recommended') },
           ...categoryItems,
         ]);
 
@@ -470,10 +471,11 @@ const AppHeader: React.FC = () => {
         setMobileMenuItems([
           { key: 'm_home', label: 'HOME', onClick: () => { navigate('/'); setMobileMenuOpen(false); } },
           { key: 'm_flashsale', label: <span className="text-[#ee4d2d]">FLASH SALE</span>, onClick: () => { navigate('/flash-sale'); setMobileMenuOpen(false); } },
+          { key: 'm_recommended', label: <span className="text-[#ee4d2d]">Recommended</span>, onClick: () => { navigate('/recommended'); setMobileMenuOpen(false); } },
           ...mobileCategoryItems,
         ]);
       } catch (error) {
-        console.error('Lỗi khi tải danh mục', error);
+        console.error('Error fetching categories', error);
       }
     };
     fetchCategories();
@@ -482,7 +484,7 @@ const AppHeader: React.FC = () => {
   const profileItems: MenuProps['items'] = isLoggedIn ? [
     {
       key: 'title',
-      label: <span className="font-bold text-gray-800 uppercase">{userInfo?.fullName || userInfo?.username || 'Người dùng'}</span>,
+      label: <span className="font-bold text-gray-800 uppercase">{userInfo?.fullName || userInfo?.username || 'User'}</span>,
       disabled: true,
       style: { cursor: 'default' }
     },
@@ -501,7 +503,7 @@ const AppHeader: React.FC = () => {
       }
     }
   ] : [
-    { key: 'login', label: 'Đăng nhập', icon: <UserOutlined />, onClick: () => navigate('/login') }
+    { key: 'login', label: 'Login', icon: <UserOutlined />, onClick: () => navigate('/login') }
   ];
 
   // ====================================================================
@@ -509,7 +511,7 @@ const AppHeader: React.FC = () => {
   // ====================================================================
   const cartContent = (
     <div className='w-[350px]'>
-      <div className='text-gray-400 text-sm mb-2 px-1'>Sản phẩm Mới thêm</div>
+      <div className='text-gray-400 text-sm mb-2 px-1'>A New Products Added</div>
       <div className='max-h-[300px] overflow-y-auto custom-scrollbar'>
         <List
           itemLayout='horizontal'
@@ -540,7 +542,7 @@ const AppHeader: React.FC = () => {
                 }
               />
               <div className='flex flex-col items-end gap-2'>
-                <Popconfirm title='Xóa sản phẩm này?' onConfirm={() => handleRemoveItem(item.id)} okText='Xóa' cancelText='Hủy' placement='left'>
+                <Popconfirm title='Delete this product?' onConfirm={() => handleRemoveItem(item.id)} okText='Delete' cancelText='Cancel' placement='left'>
                   <Button type='text' danger size='small' icon={<DeleteOutlined />} className='opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-2' />
                 </Popconfirm>
                 <div className='flex items-center mt-2'>
@@ -552,9 +554,9 @@ const AppHeader: React.FC = () => {
         />
       </div>
       <div className='flex items-center justify-between mt-2 pt-3 border-t border-gray-100'>
-        <Text className='text-xs text-gray-500'>{cartItems.length} Sản phẩm mới thêm</Text>
-        <Button type='primary' className='bg-[#ee4d2d] hover:!bg-[#ee4d2d]/90 border-none font-medium text-sm px-6' onClick={() => navigate('/cart')}>
-          Xem Giỏ Hàng
+        <Text className='text-xs text-gray-500'>{cartItems.length} New Products Added</Text>
+        <Button type='primary' className='bg-[#ee4d2d] hover:!bg-[#ee4d2d]/90 border-none font-medium text-sm px-6' onClick={() => navigate('/manage', { state: { tab: '7' } })}>
+          View Cart
         </Button>
       </div>
     </div>
@@ -562,6 +564,15 @@ const AppHeader: React.FC = () => {
 
   return (
     <>
+      <style>{`
+        .ant-menu-horizontal > .ant-menu-item::after,
+        .ant-menu-horizontal > .ant-menu-submenu::after {
+          display: none !important;
+        }
+        .ant-menu-horizontal {
+          border-bottom: none !important;
+        }
+      `}</style>
       <header
         className={`fixed top-0 z-50 w-full transition-all duration-300 flex items-center justify-between px-4 lg:px-10 bg-white/95 backdrop-blur-md ${
           scrolled ? 'h-[60px] shadow-md' : 'h-[80px] border-b border-gray-100'
@@ -587,7 +598,7 @@ const AppHeader: React.FC = () => {
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
             onPressEnter={() => handleSearch(searchKeyword)}
-            placeholder='Tìm kiếm sản phẩm...'
+            placeholder='Search products...'
             prefix={<SearchOutlined className='text-gray-400' />}
             suffix={
               <Space>
@@ -600,7 +611,7 @@ const AppHeader: React.FC = () => {
           
           <Popover content={cartContent} placement='bottomRight' trigger='hover' arrow={false} overlayInnerStyle={{ padding: '12px' }}>
             <Badge count={cartItems.length} size='small' color='#ee4d2d' offset={[-2, 5]}>
-              <Button type='text' icon={<ShoppingCartOutlined className='text-2xl text-gray-700 hover:text-[#ee4d2d] transition-colors' />} className='p-0 hover:bg-transparent' onClick={() => navigate('/cart')} />
+              <Button type='text' icon={<ShoppingCartOutlined className='text-2xl text-gray-700 hover:text-[#ee4d2d] transition-colors' />} className='p-0 hover:bg-transparent' onClick={() => navigate('/manage', { state: { tab: '7' } })} />
             </Badge>
           </Popover>
 
@@ -643,7 +654,7 @@ const AppHeader: React.FC = () => {
       </Modal>
 
       {/* Modal: Tìm kiếm Hình ảnh AI */}
-      <Modal open={isCameraModalOpen} onCancel={() => { setIsCameraModalOpen(false); handleRemoveImage(); }} title={<span className="text-lg">Tìm kiếm bằng hình ảnh</span>} footer={null} destroyOnClose centered width={450}>
+      <Modal open={isCameraModalOpen} onCancel={() => { setIsCameraModalOpen(false); handleRemoveImage(); }} title={<span className="text-lg">Search by Image</span>} footer={null} destroyOnClose centered width={450}>
         <div className='pt-2'>
           <Upload.Dragger
             name='image'
@@ -661,22 +672,22 @@ const AppHeader: React.FC = () => {
               <div className='relative w-full h-[250px] p-2'>
                 <img src={previewImage} alt='preview' className='w-full h-full object-contain rounded-md' />
                 <div className='absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center rounded-md'>
-                  <Text className='text-white font-medium'>Nhấp hoặc kéo thả ảnh khác để thay đổi</Text>
+                  <Text className='text-white font-medium'>Click or drag and drop another image to change</Text>
                 </div>
               </div>
             ) : (
               <div className='py-8 flex flex-col items-center justify-center'>
                 <p className='ant-upload-drag-icon mb-4'><InboxOutlined className='text-4xl text-[#ee4d2d]' /></p>
-                <p className='ant-upload-text font-medium text-gray-700 mb-2'>Nhấp hoặc kéo thả hình ảnh vào khu vực này</p>
-                <p className='ant-upload-hint text-gray-500 text-xs px-8'>Hỗ trợ các định dạng JPG, PNG, JPEG. Kích thước tối đa 5MB.</p>
+                <p className='ant-upload-text font-medium text-gray-700 mb-2'>Click or drag and drop an image into this area</p>
+                <p className='ant-upload-hint text-gray-500 text-xs px-8'>Supports JPG, PNG, JPEG formats. Maximum size 5MB.</p>
               </div>
             )}
           </Upload.Dragger>
 
           {fileList.length > 0 && (
             <div className='mt-5 flex justify-end gap-3 border-t pt-4'>
-              <Button size='large' icon={<DeleteOutlined />} onClick={handleRemoveImage} disabled={loadingSearch}>Xóa ảnh</Button>
-              <Button type='primary' size='large' icon={<SearchOutlined />} className='bg-[#ee4d2d]' onClick={handleExecuteImageSearch} loading={loadingSearch}>Tìm kiếm ngay</Button>
+              <Button size='large' icon={<DeleteOutlined />} onClick={handleRemoveImage} disabled={loadingSearch}>Delete Image</Button>
+              <Button type='primary' size='large' icon={<SearchOutlined />} className='bg-[#ee4d2d]' onClick={handleExecuteImageSearch} loading={loadingSearch}>Search Now  </Button>
             </div>
           )}
         </div>
@@ -685,7 +696,7 @@ const AppHeader: React.FC = () => {
       {/* Modal: Tìm kiếm Giọng nói AI */}
       <Modal open={isMicModalOpen} onCancel={() => setIsMicModalOpen(false)} footer={null} centered width={350} closable={false}>
         <div className='text-center py-6'>
-          <Title level={4}>{transcript || 'Đang lắng nghe...'}</Title>
+          <Title level={4}>{transcript || 'Listening...'}</Title>
           <div className={`audio-wave my-8 ${isListening ? 'listening' : ''}`}>
             <div className='bar'></div>
             <div className='bar'></div>

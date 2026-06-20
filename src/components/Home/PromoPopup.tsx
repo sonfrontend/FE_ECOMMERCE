@@ -7,6 +7,35 @@ import http from '@/apis/http';
 
 const { Title, Text } = Typography;
 
+const CountdownTimer: React.FC<{ endDate: string }> = ({ endDate }) => {
+  const [timeLeft, setTimeLeft] = useState<string>('');
+
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const difference = new Date(endDate).getTime() - new Date().getTime();
+      if (difference > 0) {
+        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
+        const minutes = Math.floor((difference / 1000 / 60) % 60);
+        const seconds = Math.floor((difference / 1000) % 60);
+        
+        let timeString = '';
+        if (days > 0) timeString += `${days} days `;
+        timeString += `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        setTimeLeft(timeString);
+      } else {
+        setTimeLeft('Đã hết hạn');
+      }
+    };
+
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+    return () => clearInterval(timer);
+  }, [endDate]);
+
+  return <span className="text-red-500 font-medium">{timeLeft}</span>;
+};
+
 const PromoPopup: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [vouchers, setVouchers] = useState<any[]>([]);
@@ -73,9 +102,9 @@ const PromoPopup: React.FC = () => {
         <div className="absolute bottom-[-30px] right-[-30px] w-32 h-32 bg-white opacity-10 rounded-full"></div>
 
         <GiftOutlined className="text-5xl mb-4" />
-        <Title level={3} className="text-white! mb-2">Quà Tặng Bạn Mới!</Title>
+        <Title level={3} className="text-white! mb-2">Special Offers for New Customers!</Title>
         <Text className="text-white/90 block mb-6">
-          Nhanh tay thu thập các mã giảm giá siêu hot dưới đây!
+          Grab these amazing discount codes before they're gone!
         </Text>
 
         <div className="max-h-[300px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
@@ -83,11 +112,16 @@ const PromoPopup: React.FC = () => {
             <div key={voucher.id} className="bg-white text-gray-800 rounded-lg p-3 relative shadow-md flex items-center justify-between">
               <div className="text-left flex-1 border-r border-dashed border-gray-300 pr-3">
                 <div className="text-xl font-bold text-[#ee4d2d]">
-                  Giảm {new Intl.NumberFormat('vi-VN').format(voucher.discountValue)}đ
+                  Discount {new Intl.NumberFormat('vi-VN').format(voucher.discountValue)}đ
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
-                  Đơn tối thiểu {new Intl.NumberFormat('vi-VN').format(voucher.minOrderValue)}đ
+                  Minimum order {new Intl.NumberFormat('vi-VN').format(voucher.minOrderValue)}đ
                 </div>
+                {voucher.endDate && (
+                  <div className="text-[10px] text-gray-400 mt-1">
+                    Expires in: <CountdownTimer endDate={voucher.endDate} />
+                  </div>
+                )}
               </div>
               
               <div className="pl-3 flex flex-col items-center justify-center min-w-[90px]">
@@ -100,7 +134,7 @@ const PromoPopup: React.FC = () => {
                   className="bg-[#ee4d2d] border-none text-xs"
                   onClick={() => handleSave(voucher.id)}
                 >
-                  Lưu
+                  Save
                 </Button>
               </div>
             </div>

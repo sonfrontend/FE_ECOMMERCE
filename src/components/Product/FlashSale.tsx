@@ -3,6 +3,7 @@ import { Typography, Card, Spin } from 'antd';
 import http from '@/apis/http';
 import { useNavigate } from 'react-router-dom';
 import { getImageUrl } from '@/utils/imageUrl';
+import { handleQuickBuy } from '@/utils/quickBuy';
 
 const { Title, Text } = Typography;
 
@@ -46,8 +47,8 @@ const FlashSale: React.FC = () => {
             FLASH SALE
           </Title>
         </div>
-        <div className="text-gray-500 cursor-pointer hover:text-[#ee4d2d] transition-colors text-sm font-medium" onClick={() => navigate('/search?sale=true')}>
-          Xem tất cả &gt;
+        <div className="text-gray-500 cursor-pointer hover:text-[#ee4d2d] transition-colors text-sm font-medium" onClick={() => navigate('/flash-sale')}>
+         View All &gt;
         </div>
       </div>
 
@@ -77,7 +78,7 @@ const FlashSale: React.FC = () => {
           {products?.map((product) => (
             <div 
               key={product.id || product.productId}
-              className="flex-none w-36 md:w-48 cursor-pointer group relative bg-white border border-transparent hover:border-[#ee4d2d] transition-all rounded-md overflow-hidden"
+              className="flex-none w-36 md:w-48 cursor-pointer group relative bg-white border border-transparent hover:border-gray-300 hover:shadow-md transition-all rounded-md overflow-hidden"
               onClick={() => navigate(`/product/${product.productId}`)}
             >
               <div className="relative w-full aspect-square bg-gray-50 overflow-hidden">
@@ -107,14 +108,21 @@ const FlashSale: React.FC = () => {
                         </div>
                       </div>
                     ) : <div></div>}
-                    <span className='text-gray-500 text-[9px] md:text-[10px] ml-1 whitespace-nowrap'>Đã bán {product.soldQuantity || product.SoldQuantity || 0}</span>
+                    <span className='text-gray-500 text-[9px] md:text-[10px] ml-1 whitespace-nowrap'>Sold {product.soldQuantity || product.SoldQuantity || 0}</span>
                   </div>
                   <div className='flex items-center justify-between'>
                     <span className='text-[#ee4d2d] font-bold text-sm md:text-[15px] leading-none'>
                       {formatPrice(product.currentPrice)}
                     </span>
-                    <div className='bg-[#ee4d2d] text-white text-[9px] md:text-[10px] px-1.5 py-0.5 md:px-2 rounded shadow-sm whitespace-nowrap hover:bg-[#d73f22] transition-colors'>
-                      Mua Ngay
+                    <div 
+                      className='bg-[#ee4d2d] text-white text-[9px] md:text-[10px] px-1.5 py-0.5 md:px-2 rounded shadow-sm whitespace-nowrap hover:bg-[#d73f22] transition-colors cursor-pointer'
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleQuickBuy(product.productId, navigate);
+                      }}
+                    >
+                      Buy Now
                     </div>
                   </div>
                 </div>

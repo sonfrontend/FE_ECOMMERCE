@@ -32,7 +32,11 @@ interface CartItem {
   };
 }
 
-const Cart: React.FC = () => {
+interface CartProps {
+  isEmbedded?: boolean;
+}
+
+const Cart: React.FC<CartProps> = ({ isEmbedded = false }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -92,9 +96,9 @@ const Cart: React.FC = () => {
   
 
   return (
-    <div className='bg-[#f5f5f5] min-h-screen py-8 w-full font-sans'>
-      <div className='max-w-[1200px] mx-auto px-4'>
-        <Title level={2} className='mb-6'>Giỏ Hàng Của Bạn</Title>
+    <div className={isEmbedded ? 'w-full h-full p-4 md:p-6' : 'bg-[#f5f5f5] min-h-screen py-8 w-full font-sans'}>
+      <div className={isEmbedded ? 'w-full' : 'max-w-[1200px] mx-auto px-4'}>
+        <Title level={isEmbedded ? 4 : 2} className='mb-6'>Giỏ Hàng Của Bạn</Title>
 
         {cartItems.length === 0 ? (
           <div className='bg-white p-12 text-center shadow-sm rounded-sm'>

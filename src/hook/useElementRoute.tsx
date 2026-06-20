@@ -30,6 +30,10 @@ const AdminWalletManage = lazy(() => import('@/pages/admin/AdminWalletManage'));
 const AdminVoucherManage = lazy(() => import('@/pages/admin/AdminVoucherManage'));
 const ShippingFeeManage = lazy(() => import('@/pages/admin/AdminShippingFeeManage'));
 const AdminChatManage = lazy(() => import('@/pages/admin/AdminChatManage'));
+const AdminCategoryManage = lazy(() => import('@/pages/admin/AdminCategoryManage'));
+const AdminReviewManage = lazy(() => import('@/pages/admin/AdminReviewManage'));
+const AdminPromotionManage = lazy(() => import('@/pages/admin/AdminPromotionManage'));
+const AdminDisputeManage = lazy(() => import('@/pages/admin/AdminDisputeManage'));
 
 export default function useRouteElements() {
   const routeElements = useRoutes([
@@ -72,6 +76,10 @@ export default function useRouteElements() {
         {
           path: 'flash-sale',
           element: <CategoryProducts mode="flash-sale" />
+        },
+        {
+          path: 'recommended',
+          element: <CategoryProducts mode="recommended" />
         },
         // Các trang yêu cầu đăng nhập
         {
@@ -135,6 +143,10 @@ export default function useRouteElements() {
               element: <AdminVoucherManage />
             },
             {
+              path: 'categories',
+              element: <AdminCategoryManage />
+            },
+            {
               path: 'payments',
               element: <AdminPaymentManage />
             },
@@ -149,6 +161,18 @@ export default function useRouteElements() {
             {
               path: 'chat',
               element: <AdminChatManage />
+            },
+            {
+              path: 'reviews',
+              element: <AdminReviewManage />
+            },
+            {
+              path: 'promotions',
+              element: <AdminPromotionManage />
+            },
+            {
+              path: 'disputes',
+              element: <AdminDisputeManage />
             }
           ]
         }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Typography, List, Avatar, Input, Button, Badge, Spin } from 'antd';
+import { Typography, List, Avatar, Input, Button, Badge, Spin, Select } from 'antd';
 import { SendOutlined, UserOutlined, MessageOutlined, PictureOutlined ,CloseOutlined} from '@ant-design/icons';
 import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import http from '@/apis/http';
@@ -12,6 +12,7 @@ const AdminChatManage: React.FC = () => {
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [currentAdminId, setCurrentAdminId] = useState<string>('');
   const [connection, setConnection] = useState<any>(null);
@@ -46,8 +47,18 @@ const AdminChatManage: React.FC = () => {
     }
   };
 
+  const fetchAllUsers = async () => {
+    try {
+      const res = await http.get('/api/User');
+      setAllUsers(res.data);
+    } catch (error) {
+      console.error("Lỗi lấy danh sách user", error);
+    }
+  };
+
   useEffect(() => {
     fetchConversations();
+    fetchAllUsers();
     
     // Connect to Hub
     const newConnection = new HubConnectionBuilder()
@@ -301,11 +312,38 @@ const AdminChatManage: React.FC = () => {
   };
 
   return (
-    <div className='bg-white rounded-xl shadow-sm border border-gray-100 w-full h-[calc(100vh-100px)] flex overflow-hidden'>
+    <div className='bg-white w-full h-[calc(100vh-184px)] flex overflow-hidden'>
       {/* Left side: Conversations */}
       <div className="w-[320px] border-r border-gray-100 flex flex-col bg-white">
-        <div className="p-2 border-b border-gray-100">
+        <div className="p-4 border-b border-gray-100 flex flex-col gap-3 shrink-0">
           <Title level={4} className="m-0 text-gray-800 font-bold">Trò chuyện</Title>
+          <Select
+            showSearch
+            placeholder="Tìm người dùng để nhắn tin..."
+            style={{ width: '100%' }}
+            optionFilterProp="children"
+            filterOption={(input, option) =>
+              (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())
+            }
+            options={allUsers.map(u => ({ value: u.userId, label: u.fullName || u.userName }))}
+            value={null}
+            onChange={(userId) => {
+              const existing = conversations.find(c => c.userId === userId);
+              if (!existing) {
+                const user = allUsers.find(u => u.userId === userId);
+                if (user) {
+                  setConversations(prev => [{
+                    userId: user.userId,
+                    userName: user.fullName || user.userName,
+                    lastMessage: '',
+                    lastMessageAt: new Date().toISOString(),
+                    unreadCount: 0
+                  }, ...prev]);
+                }
+              }
+              handleSelectConversation(userId);
+            }}
+          />
         </div>
         <div className="flex-1 overflow-y-auto">
           <List
@@ -373,7 +411,7 @@ const AdminChatManage: React.FC = () => {
                         )}
                         {msg.message && <div className="leading-relaxed">{renderMessageWithLinks(msg.message, isMe)}</div>}
                         <div className={`text-[10px] mt-1 text-right flex items-center justify-end gap-1 ${isMe ? 'text-blue-400' : 'text-gray-400'}`}>
-                          {msg.status === 'sending' ? 'Đang gửi...' : msg.status === 'error' ? 'Lỗi' : new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          {msg.status === 'sending' ? 'Đang gửi...' : msg.status === 'error' ? 'Lỗi' : new Date(msg.createdAt).toLocaleString('vi-VN', {hour: '2-digit', minute:'2-digit', day: '2-digit', month: '2-digit'})}
                         </div>
                       </div>
                     </div>
@@ -402,7 +440,7 @@ const AdminChatManage: React.FC = () => {
               <div className="px-4 py-2 mb-3 bg-gray-50 rounded-lg flex justify-between items-center text-[12px] text-gray-600 border border-gray-100">
                 <div className="truncate flex-1 pr-4 border-l-2 border-gray-200 pl-2">
                   <span className="font-medium mr-1 text-gray-800">Trả lời:</span>
-                  {formatMessageText(replyingToMessage.message)}
+                  {replyingToMessage.message?.replace(/\n/g, ' ')}
                 </div>
                 <Button type="text" icon={<CloseOutlined />} onClick={() => setReplyingToMessage(null)} size="small" className="text-gray-400 hover:text-gray-600" />
               </div>
