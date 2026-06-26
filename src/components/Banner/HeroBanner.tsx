@@ -1,10 +1,35 @@
 import React, { useEffect, useState } from 'react';
 import { Carousel, Typography, Button } from 'antd';
+import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import http from '@/apis/http';
 import { useNavigate } from 'react-router-dom';
 import { getImageUrl } from '@/utils/imageUrl';
 
 const { Title, Text } = Typography;
+
+const CustomPrevArrow = (props: any) => {
+  const { onClick } = props;
+  return (
+    <div
+      className="absolute top-1/2 -translate-y-1/2 left-5 z-10 flex items-center justify-center w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 cursor-pointer transition-colors"
+      onClick={onClick}
+    >
+      <LeftOutlined style={{ color: '#fff', fontSize: '14px' }} />
+    </div>
+  );
+};
+
+const CustomNextArrow = (props: any) => {
+  const { onClick } = props;
+  return (
+    <div
+      className="absolute top-1/2 -translate-y-1/2 right-5 z-10 flex items-center justify-center w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 cursor-pointer transition-colors"
+      onClick={onClick}
+    >
+      <RightOutlined style={{ color: '#fff', fontSize: '14px' }} />
+    </div>
+  );
+};
 
 const HeroBanner: React.FC = () => {
   const [promotions, setPromotions] = useState<any[]>([]);
@@ -12,12 +37,12 @@ const HeroBanner: React.FC = () => {
 
   // Các banner mô tả shop (mặc định)
   const defaultBanners = [
-    {
-      id: 'shop-1',
-      title: 'NEW COLLECTION',
-      description: 'Minimalist style, elevating your appearance.',
-      imageUrl: getImageUrl('normal.png'),
-    },
+    // {
+    //   id: 'default',
+    //   title: 'NEW COLLECTION',
+    //   description: 'Minimalist style, elevating your appearance.',
+    //   imageUrl: getImageUrl('normal.png'),
+    // },
   ];
 
   useEffect(() => {
@@ -31,7 +56,7 @@ const HeroBanner: React.FC = () => {
              id: p.id,
              title: p.title,
              description: p.description,
-             imageUrl:getImageUrl(p.imageUrl),
+             imageUrl:getImageUrl(p.imageUrl ) ?? '',
              discountPercentage: p.discountPercentage
           }));
           setPromotions(fetchedPromotions);
@@ -65,6 +90,31 @@ const HeroBanner: React.FC = () => {
           width: 14px;
           height: 14px;
         }
+        .ant-carousel .slick-prev,
+        .ant-carousel .slick-next {
+          width: 32px !important;
+          height: 32px !important;
+          background: rgba(0, 0, 0, 0.4) !important;
+          border-radius: 50%;
+          z-index: 10;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+        }
+        .ant-carousel .slick-prev:hover,
+        .ant-carousel .slick-next:hover {
+          background: rgba(0, 0, 0, 0.7) !important;
+        }
+        .ant-carousel .slick-prev {
+          left: 20px !important;
+        }
+        .ant-carousel .slick-next {
+          right: 20px !important;
+        }
+        .ant-carousel .slick-prev::before,
+        .ant-carousel .slick-next::before {
+          display: none !important;
+        }
         @keyframes subtleZoom {
           0% { transform: scale(1); }
           100% { transform: scale(1.05); }
@@ -74,24 +124,23 @@ const HeroBanner: React.FC = () => {
         }
       `}</style>
 
-      <Carousel autoplay effect='fade' dotPosition='bottom' className='w-full'>
+      <Carousel autoplay effect='fade' dots={false} arrows={true} prevArrow={<CustomPrevArrow />} nextArrow={<CustomNextArrow />} className='w-full banner-carousel'>
         {allBanners.map((banner, index) => (
           <div 
             key={banner.id || index} 
             className='relative w-full outline-none overflow-hidden group cursor-pointer'
             onClick={() => banner.link && navigate(banner.link)}
           >
-            {/* Ảnh Banner kích thước to hơn (cao hơn) */}
             <div
-              className='w-full h-[450px] md:h-[600px] lg:h-[90vh] bg-cover bg-center banner-bg-zoom origin-center'
+              className='w-full aspect-[16/5] bg-cover bg-no-repeat bg-center center banner origin-center abc'
               style={{ backgroundImage: `url(${banner.imageUrl})` }}
             />
 
             {/* Lớp phủ (Overlay) tối hơn để làm nổi bật chữ */}
-            <div className='absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors duration-500' />
+            {/* <div className='absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors duration-500' /> */}
 
             {/* Khu vực chứa Chữ (Title & Description) - Đặt lùi lên phía trên (top) một chút */}
-            {banner.title && (
+            {/* {banner.id ==='default' &&  banner.title && (
               <div className='absolute inset-0 flex flex-col justify-start items-center text-center pt-28 md:pt-40 px-4'>
                 <Title level={1} className='!text-white !text-5xl md:!text-7xl lg:!text-8xl font-black tracking-tight mb-6 uppercase drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)]'>
                   {banner.title}
@@ -111,7 +160,8 @@ const HeroBanner: React.FC = () => {
                     BUY NOW
                   </div>}
               </div>
-            )}
+            )} */}
+            
           </div>
         ))}
       </Carousel>

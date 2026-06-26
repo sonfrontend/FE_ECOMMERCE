@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Row, Col, Card, Statistic, Typography, Spin, message, Table, Tag } from 'antd';
+import { Row, Col, Card, Statistic, Typography, Spin, message, Table, Tag, Button } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { 
   DollarOutlined, 
   ShoppingCartOutlined, 
@@ -8,8 +9,10 @@ import {
   AppstoreOutlined,
   CloseCircleOutlined,
   FireOutlined,
-  StarOutlined
+  StarOutlined,
+  DownloadOutlined
 } from '@ant-design/icons';
+import * as XLSX from 'xlsx-js-style';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -48,6 +51,7 @@ const formatCurrency = (value: number) => {
 };
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<any>({
     totalUsers: 0,
@@ -60,10 +64,11 @@ export default function Dashboard() {
     topSellingProduct: 'Đang tải...'
   });
   
-  const [pendingDisputes, setPendingDisputes] = useState(0);
+  const [disputedOrdersCount, setDisputedOrdersCount] = useState(0);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);
+  const [lostProducts, setLostProducts] = useState<any[]>([]);
 
   const [revenueLabels, setRevenueLabels] = useState<string[]>([]);
   const [revenueData, setRevenueData] = useState<number[]>([]);
@@ -77,14 +82,15 @@ export default function Dashboard() {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const [summaryRes, revenueRes, orderRes, productsRes, ordersListRes, disputesRes, lowStockRes] = await Promise.allSettled([
+      const [summaryRes, revenueRes, orderRes, productsRes, ordersListRes, disputesRes, lowStockRes, lostProductsRes] = await Promise.allSettled([
         http.get('/api/AdminStatistic/dashboard-summary'),
         http.get('/api/AdminStatistic/revenue'),
         http.get('/api/AdminStatistic/order-status'),
         http.get('/api/Product?sortBy=best_selling&pageSize=100'),
         http.get('/api/Order/admin'),
-        http.get('/api/Dispute'),
-        http.get('/api/AdminStatistic/low-stock')
+        http.get('/api/Dispute/admin/complaints'),
+        http.get('/api/AdminStatistic/low-stock'),
+        http.get('/api/AdminStatistic/lost-products')
       ]);
 
       if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value.data);
@@ -148,8 +154,14 @@ export default function Dashboard() {
       if (disputesRes.status === 'fulfilled') {
         const disputes = disputesRes.value.data;
         if (disputes && Array.isArray(disputes)) {
-            const pending = disputes.filter((d: any) => d.status === 'Pending').length;
-            setPendingDisputes(pending);
+            setDisputedOrdersCount(disputes.length);
+        }
+      }
+
+      if (lostProductsRes.status === 'fulfilled') {
+        let lost = lostProductsRes.value.data;
+        if (lost && Array.isArray(lost)) {
+            setLostProducts(lost);
         }
       }
     } catch (error) {
@@ -160,6 +172,106 @@ export default function Dashboard() {
   };
 
   if (loading) return <div className="flex justify-center items-center h-[70vh]"><Spin size="large" tip="Đang tải dữ liệu..." /></div>;
+
+  const exportToExcel = () => {
+    // 1. Tổng quan
+    const summaryData = [
+      { 'Chỉ số': 'Tổng người dùng', 'Giá trị': summary.totalUsers },
+      { 'Chỉ số': 'Tổng sản phẩm', 'Giá trị': summary.totalProducts },
+      { 'Chỉ số': 'Tổng đơn hàng', 'Giá trị': summary.totalOrders },
+      { 'Chỉ số': 'Tổng doanh thu', 'Giá trị': formatCurrency(summary.totalRevenue) },
+      { 'Chỉ số': 'Tổng SP đã bán', 'Giá trị': summary.totalProductsSold },
+      { 'Chỉ số': 'Tổng SP thất lạc', 'Giá trị': summary.totalProductsLost },
+      { 'Chỉ số': 'Danh mục bán chạy', 'Giá trị': summary.topSellingCategory },
+      { 'Chỉ số': 'Sản phẩm bán chạy', 'Giá trị': summary.topSellingProduct }
+    ];
+
+    // 2. Doanh thu
+    const revenueSheetData = revenueLabels.map((label, i) => ({
+      'Tháng': label,
+      'Doanh thu (VNĐ)': revenueData[i]
+    }));
+
+    // 3. Sản phẩm bán chạy
+    const topProductsData = topProducts.map(p => ({
+      'Mã SP': p.id || p.Id,
+      'Tên sản phẩm': p.productName || p.ProductName,
+      'Đã bán': p.soldQuantity || p.SoldQuantity,
+      'Đánh giá trung bình': p.averageRating || p.AverageRating || 0
+    }));
+
+    // 4. Sắp hết hàng
+    const lowStockData = lowStockProducts.map(p => ({
+      'Mã biến thể': p.productId,
+      'Tên sản phẩm': p.productName,
+      'Tồn kho': p.stockQuantity,
+      'Đã bán': p.soldQuantity,
+      'Giá gốc': p.originalPrice
+    }));
+
+    // 5. Sản phẩm thất lạc
+    const lostProductsData = lostProducts.map(p => ({
+      'Mã ĐH': p.orderId,
+      'Ngày đặt': moment(p.orderDate).format('DD/MM/YYYY HH:mm'),
+      'Tên sản phẩm': p.productName,
+      'Số lượng': p.quantity,
+      'Đơn giá': p.price,
+      'Tổng tiền': p.total
+    }));
+
+    // 6. Đơn hàng gần đây
+    const recentOrdersData = recentOrders.map(o => ({
+      'Mã ĐH': o.id || o.Id,
+      'Ngày đặt': moment(o.orderDate || o.OrderDate).format('DD/MM/YYYY HH:mm'),
+      'Khách hàng': (o.user || o.User)?.fullName || (o.user || o.User)?.username || 'Khách',
+      'Tổng tiền': o.totalAmount || o.TotalAmount,
+      'Trạng thái': o.status || o.Status,
+      'Thanh toán': (o.paymentMethod || o.PaymentMethod) === 'COD' ? 'Thanh toán khi nhận hàng' : 'PayPal'
+    }));
+
+    const wb = XLSX.utils.book_new();
+    
+    const styleWorksheet = (ws: any) => {
+      const range = XLSX.utils.decode_range(ws['!ref']!);
+      const colWidths: {wch: number}[] = [];
+      
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        let max_width = 10;
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+          const cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
+          const cell = ws[cell_ref];
+          
+          if (!cell) continue;
+          
+          const text_len = cell.v ? cell.v.toString().length : 0;
+          if (text_len > max_width) {
+            max_width = text_len;
+          }
+          
+          // Style Header row
+          if (R === 0) {
+            cell.s = {
+              font: { bold: true },
+              alignment: { horizontal: "center", vertical: "center" }
+            };
+          }
+        }
+        colWidths.push({ wch: max_width + 4 }); // add padding
+      }
+      ws['!cols'] = colWidths;
+      return ws;
+    };
+
+    XLSX.utils.book_append_sheet(wb, styleWorksheet(XLSX.utils.json_to_sheet(summaryData)), "Tổng quan");
+    XLSX.utils.book_append_sheet(wb, styleWorksheet(XLSX.utils.json_to_sheet(revenueSheetData)), "Doanh thu");
+    XLSX.utils.book_append_sheet(wb, styleWorksheet(XLSX.utils.json_to_sheet(topProductsData)), "Sản phẩm bán chạy");
+    XLSX.utils.book_append_sheet(wb, styleWorksheet(XLSX.utils.json_to_sheet(lowStockData)), "Sắp hết hàng");
+    XLSX.utils.book_append_sheet(wb, styleWorksheet(XLSX.utils.json_to_sheet(lostProductsData)), "Sản phẩm thất lạc");
+    XLSX.utils.book_append_sheet(wb, styleWorksheet(XLSX.utils.json_to_sheet(recentOrdersData)), "Đơn hàng gần đây");
+
+    const fileName = `Bao_Cao_Thong_Ke_${moment().format('DD_MM_YYYY')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
 
   const lineChartData = {
     labels: revenueLabels,
@@ -217,12 +329,12 @@ export default function Dashboard() {
   ];
 
   return (
-    <div>
-      <div className="flex justify-between items-end mb-8">
-        <div>
-          <Title level={3} className='mb-1 text-gray-800'>Tổng quan kinh doanh</Title>
-          <Text className="text-gray-500">Cập nhật lúc {moment().format('HH:mm - DD/MM/YYYY')}</Text>
-        </div>
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex justify-between items-center mb-6">
+        <Title level={2} className="m-0 text-gray-800 tracking-tight">Thống kê & Tổng quan</Title>
+        <Button type="primary" icon={<DownloadOutlined />} onClick={exportToExcel} className="h-10 px-6 font-medium shadow-md hover:shadow-lg transition-all rounded-lg">
+          Xuất báo cáo
+        </Button>
       </div>
       
       {/* STAT CARDS */}
@@ -277,8 +389,13 @@ export default function Dashboard() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} className="shadow-md rounded-2xl overflow-hidden relative" style={{ background: 'linear-gradient(to bottom right, #64748b, #4b5563)' }}>
-            <Statistic title={<span style={{ color: 'rgba(255, 255, 255, 0.8)', fontWeight: 500 }}>Khiếu nại đang chờ</span>} value={pendingDisputes} valueStyle={{ color: '#fff', fontWeight: 'bold' }} />
+          <Card 
+            bordered={false} 
+            className="shadow-md rounded-2xl overflow-hidden relative cursor-pointer hover:opacity-90 transition-opacity" 
+            style={{ background: 'linear-gradient(to bottom right, #64748b, #4b5563)' }}
+            onClick={() => navigate('/admin/order', { state: { activeTab: 'Disputed' } })}
+          >
+            <Statistic title={<span style={{ color: 'rgba(255, 255, 255, 0.8)', fontWeight: 500 }}>Danh sách đơn hàng đã khiếu nại</span>} value={disputedOrdersCount} valueStyle={{ color: '#fff', fontWeight: 'bold' }} />
             <div className="absolute top-4 right-4 text-4xl" style={{ color: 'rgba(255, 255, 255, 0.2)' }}><ExclamationCircleOutlined /></div>
           </Card>
         </Col>

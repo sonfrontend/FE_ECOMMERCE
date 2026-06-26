@@ -44,6 +44,12 @@ class Http {
 
         // Nếu lỗi 401 và chưa từng retry
         if (error.response?.status === HttpStatusCode.Unauthorized && !originalRequest._retry) {
+          
+          // Bỏ qua logic refresh token nếu là request login
+          if (originalRequest.url?.includes('/api/Auth/login')) {
+            return Promise.reject(error);
+          }
+
           originalRequest._retry = true;
 
           const refreshToken = localStorage.getItem('refreshToken');

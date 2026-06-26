@@ -95,6 +95,19 @@ const OrderHistory: React.FC = () => {
 
   useEffect(() => {
     fetchOrders();
+
+    // Lắng nghe sự kiện có thông báo mới (từ Header bắn sang)
+    const handleNotification = (e: any) => {
+      // Có thể check thêm e.detail.type nếu chỉ muốn load lại khi type là OrderStatusChanged
+      // Ở đây load lại danh sách đơn hàng cho chắc ăn
+      fetchOrders();
+    };
+
+    window.addEventListener('receive-notification', handleNotification);
+    
+    return () => {
+      window.removeEventListener('receive-notification', handleNotification);
+    };
   }, []);
 
 
@@ -172,7 +185,8 @@ const OrderHistory: React.FC = () => {
       try {
         await http.post('/api/Notification/notify-admin', {
           actionCode: 'REQUEST_REFUND',
-          details: `Đơn hàng #${disputeOrder.id} - Lý do: ${values.reason}`
+          details: `Đơn hàng #${disputeOrder.id} - Lý do: ${values.reason}`,
+          relatedId: disputeOrder.id.toString()
         });
       } catch (err) {
         console.error('Failed to notify admin', err);
@@ -418,6 +432,17 @@ const OrderHistory: React.FC = () => {
                                 try {
                                   const res = await http.put(`/api/Order/${order.id}/confirm-received`);
                                   message.success(res?.data?.message || 'Cảm ơn bạn đã mua sắm!');
+                                  
+                                  try {
+                                    await http.post('/api/Notification/notify-admin', {
+                                      actionCode: 'COMPLETE_ORDER',
+                                      details: `Đơn hàng #${order.id} đã được người mua xác nhận hoàn thành.`,
+                                      relatedId: order.id.toString()
+                                    });
+                                  } catch (err) {
+                                    console.error('Failed to notify admin', err);
+                                  }
+
                                   fetchOrders();
                                 } catch (error: any) {
                                   message.error(error?.response?.data || 'Có lỗi xảy ra');
@@ -453,7 +478,7 @@ const OrderHistory: React.FC = () => {
                         {order.complaintEvidenceUrl && (
                           <div className="mt-3">
                             <strong>Bằng chứng đính kèm:</strong><br/>
-                            <img src={getImageUrl(order.complaintEvidenceUrl, 'complants')} alt="Bằng chứng của bạn" style={{ maxWidth: 100, maxHeight: 100, borderRadius: 4, objectFit: 'cover', marginTop: 8 }} />
+                            <img src={getImageUrl(order.complaintEvidenceUrl)} alt="Bằng chứng của bạn" style={{ maxWidth: 100, maxHeight: 100, borderRadius: 4, objectFit: 'cover', marginTop: 8 }} />
                           </div>
                         )}
                       </div>
@@ -480,7 +505,7 @@ const OrderHistory: React.FC = () => {
                           {order.adminEvidenceUrl && (
                             <div className="mt-3">
                               <strong>Bằng chứng đính kèm:</strong><br/>
-                              <img src={getImageUrl(order.adminEvidenceUrl, 'complants')} alt="Bằng chứng từ quản trị viên" style={{ maxWidth: 200, maxHeight: 200, borderRadius: 4, objectFit: 'cover', marginTop: 8 }} />
+                              <img src={getImageUrl(order.adminEvidenceUrl)} alt="Bằng chứng từ quản trị viên" style={{ maxWidth: 200, maxHeight: 200, borderRadius: 4, objectFit: 'cover', marginTop: 8 }} />
                             </div>
                           )}
                         </div>
@@ -492,10 +517,15 @@ const OrderHistory: React.FC = () => {
                               onClick={async () => {
                                 try {
                                   await http.post(`/api/Dispute/order/${order.id}/reply-resolution`, { accept: true });
+                                  await http.post('/api/Notification/notify-admin', {
+                                    actionCode: 'ACCEPT_DISPUTE',
+                                    details: `Đơn hàng #${order.id}`,
+                                    relatedId: order.id.toString()
+                                  });
                                   message.success('Bạn đã đồng ý với phương án giải quyết');
                                   fetchOrders();
                                 } catch(e) {
-                                  message.error('Lỗi khi gửi xác nhận');
+                                  message.error('Lỗi khi phản hồi');
                                 }
                               }}
                             >
@@ -506,6 +536,11 @@ const OrderHistory: React.FC = () => {
                               onClick={async () => {
                                 try {
                                   await http.post(`/api/Dispute/order/${order.id}/reply-resolution`, { accept: false });
+                                  await http.post('/api/Notification/notify-admin', {
+                                    actionCode: 'REJECT_DISPUTE',
+                                    details: `Đơn hàng #${order.id}`,
+                                    relatedId: order.id.toString()
+                                  });
                                   message.success('Bạn không đồng ý. Tiếp tục khiếu nại.');
                                   fetchOrders();
                                 } catch(e) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Spin, message, Button, Input, Select, Space, Modal, Upload } from 'antd';
+import { Typography, Spin, message, Button, Input, Select, Space, Modal, Upload, InputNumber, Popover } from 'antd';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { Link, useParams, useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { HeartOutlined, HeartFilled, RightOutlined, DownOutlined, SearchOutlined, PictureOutlined, AudioOutlined, CameraOutlined, DeleteOutlined, InboxOutlined, CloseOutlined } from '@ant-design/icons';
@@ -56,6 +56,34 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
   
   const currentType = searchParams.get('type') || 'new';
   const currentPrice = searchParams.get('price');
+  const minPriceParam = searchParams.get('minPrice');
+  const maxPriceParam = searchParams.get('maxPrice');
+  
+  const [localMinPrice, setLocalMinPrice] = useState<number | null>(minPriceParam ? Number(minPriceParam) : null);
+  const [localMaxPrice, setLocalMaxPrice] = useState<number | null>(maxPriceParam ? Number(maxPriceParam) : null);
+  const [isPricePopoverOpen, setIsPricePopoverOpen] = useState(false);
+
+  const applyPriceRange = () => {
+    if (localMinPrice !== null && localMaxPrice !== null && localMinPrice > localMaxPrice) {
+      message.error('Vui lòng nhập khoảng giá từ thấp đến cao');
+      return;
+    }
+
+    const newParams = new URLSearchParams(searchParams);
+    if (localMinPrice !== null && localMinPrice !== undefined) {
+      newParams.set('minPrice', localMinPrice.toString());
+    } else {
+      newParams.delete('minPrice');
+    }
+    
+    if (localMaxPrice !== null && localMaxPrice !== undefined) {
+      newParams.set('maxPrice', localMaxPrice.toString());
+    } else {
+      newParams.delete('maxPrice');
+    }
+    setSearchParams(newParams, { state: location.state });
+    setIsPricePopoverOpen(false); // Close popover after apply
+  };
   
   // States for Local Search (Text, Voice, Image)
   const [localSearchKeyword, setLocalSearchKeyword] = useState('');
@@ -152,16 +180,29 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
 
   // Fetch Categories
   useEffect(() => {
+    // Clear subcategories when switching categories to prevent race conditions with auto-select
+    setSubCategories([]);
+    setParentCategory(null);
+    
     const fetchCats = async () => {
       try {
         const res = await http.get('/api/Category');
-        // const res = await getCategories();
         const cats: Category[] = res.data;
         if (mode === 'category' && id) {
           const currentParent = cats.find(c => c.id.toString() === id);
           if (currentParent) {
             setParentCategory(currentParent);
-            setSubCategories(currentParent.subCategories || []);
+            const subs = currentParent.subCategories || [];
+            setSubCategories(subs);
+
+            // Auto-select logic: always select the first subcategory (Level 2)
+            if (!searchParams.get('sub') && subs.length > 0) {
+              const firstSub = subs[0];
+              const targetId = firstSub.id.toString();
+              const newParams = new URLSearchParams(searchParams);
+              newParams.set('sub', targetId);
+              setSearchParams(newParams, { replace: true, state: location.state });
+            }
           }
         } else {
           // For search and flash-sale, display all root categories
@@ -173,7 +214,7 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
       }
     };
     fetchCats();
-  }, [id, mode]);
+  }, [id, mode]); // Only re-run when id or mode changes
 
   // Auto-expand parent category when a leaf category is selected via URL
   useEffect(() => {
@@ -193,19 +234,32 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
         }
       }
     } else if (!subId) {
-      // If "View All" is selected (no subId), maybe close all or leave as is. 
-      // The user requested: "Còn nếu chọn danh mục con thì... đóng các category khác lại".
-      // We can leave this alone so they stay expanded when clicking View All, or clear it.
-      // Let's clear it so it looks clean when returning to View All.
       setExpandedCats([]);
     }
   }, [subId, subCategories]);
 
+  const fetchIdRef = React.useRef(0);
+
   // Fetch Products
   const fetchProds = async (pageNum: number, isNew = false) => {
+    const currentFetchId = isNew ? ++fetchIdRef.current : fetchIdRef.current;
+    
     try {
       if (isNew) setLoading(true);
       else setLoadingMore(true);
+
+      if (mode === 'search' && !isImageSearch && !hasFilteredImageSearch) {
+        const activeKw = keyword || queryParam;
+        if (!activeKw || activeKw.trim() === '') {
+          if (currentFetchId === fetchIdRef.current) {
+            setProducts([]);
+            setTotalItems(0);
+          }
+          if (isNew) setLoading(false);
+          else setLoadingMore(false);
+          return;
+        }
+      }
 
       if (isImageSearch || hasFilteredImageSearch) {
         const imageProducts = isImageSearch ? (location.state?.products || localImageProducts || []) : localImageProducts;
@@ -228,8 +282,10 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
           sorted.sort((a,b) => (b.soldQuantity || b.SoldQuantity || 0) - (a.soldQuantity || a.SoldQuantity || 0));
         }
 
-        setProducts(sorted);
-        setTotalItems(sorted.length);
+        if (currentFetchId === fetchIdRef.current) {
+          setProducts(sorted);
+          setTotalItems(sorted.length);
+        }
       } else {
         const categoryIdToFetch = subId || (mode === 'category' ? id : undefined);
         
@@ -237,8 +293,10 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
           // Sử dụng LocalStorage favorites thay vì query BE dựa trên token
           const favIds = getFavorites();
           if (favIds.length === 0) {
-            setProducts([]);
-            setTotalItems(0);
+            if (currentFetchId === fetchIdRef.current) {
+              setProducts([]);
+              setTotalItems(0);
+            }
           } else {
             let backendSort = undefined;
             if (currentPrice === 'ins') backendSort = 'asc';
@@ -261,12 +319,14 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
               );
             }
             
-            if (isNew) {
-              setProducts(fetchedData);
-            } else {
-              setProducts(prev => [...prev, ...fetchedData]);
+            if (currentFetchId === fetchIdRef.current) {
+              if (isNew) {
+                setProducts(fetchedData);
+              } else {
+                setProducts(prev => [...prev, ...fetchedData]);
+              }
+              setTotalItems(fetchedData.length);
             }
-            setTotalItems(fetchedData.length);
           }
         } else if (mode === 'recommended') {
           // Fetch recommended products
@@ -292,13 +352,15 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
             fetchedData.sort((a: any,b: any) => (b.soldQuantity || b.SoldQuantity || 0) - (a.soldQuantity || a.SoldQuantity || 0));
           }
 
-          if (isNew) {
-            setProducts(fetchedData);
-          } else {
-            // Note: Currently recommendation endpoint doesn't support pagination, so we load all at once.
-            setProducts(prev => [...prev, ...fetchedData]);
+          if (currentFetchId === fetchIdRef.current) {
+            if (isNew) {
+              setProducts(fetchedData);
+            } else {
+              // Note: Currently recommendation endpoint doesn't support pagination, so we load all at once.
+              setProducts(prev => [...prev, ...fetchedData]);
+            }
+            setTotalItems(fetchedData.length);
           }
-          setTotalItems(fetchedData.length);
         } else {
           let backendSortBy = '';
           if (currentType === 'bestselling') backendSortBy = 'best_selling';
@@ -309,18 +371,22 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
               keyword: mode === 'search' ? (keyword || queryParam || undefined) : keyword, 
               sortBy: backendSortBy,
               sortPrice: currentPrice || undefined,
+              minPrice: minPriceParam || undefined,
+              maxPrice: maxPriceParam || undefined,
               page: pageNum, 
               pageSize,
               isFlashSale: mode === 'flash-sale'
             }
           });
           
-          if (isNew) {
-            setProducts(res.data.items || []);
-          } else {
-            setProducts(prev => [...prev, ...(res.data.items || [])]);
+          if (currentFetchId === fetchIdRef.current) {
+            if (isNew) {
+              setProducts(res.data.items || []);
+            } else {
+              setProducts(prev => [...prev, ...(res.data.items || [])]);
+            }
+            setTotalItems(res.data.totalItems || 0);
           }
-          setTotalItems(res.data.totalItems || 0);
         }
       }
     } catch (error) {
@@ -334,7 +400,7 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
   useEffect(() => {
     setPage(1);
     fetchProds(1, true);
-  }, [id, subId, keyword, currentType, currentPrice, mode, queryParam, isImageSearch, hasFilteredImageSearch, localImageProducts, location.state]);
+  }, [id, subId, keyword, currentType, currentPrice, minPriceParam, maxPriceParam, mode, queryParam, isImageSearch, hasFilteredImageSearch, localImageProducts, location.state]);
 
   useEffect(() => {
     if (page > 1) {
@@ -471,6 +537,11 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
       const fileToUpload = fileList[0]?.originFileObj || fileList[0];
       formData.append('image', fileToUpload as Blob);
       
+      const categoryIdToFetch = subId || (mode === 'category' ? id : undefined);
+      if (categoryIdToFetch) {
+        formData.append('categoryId', categoryIdToFetch.toString());
+      }
+      
       const res = await http.post('/api/Product/search-by-image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
@@ -577,14 +648,6 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
         <div className='w-64 shrink-0 bg-white p-4 shadow-sm rounded-sm self-start h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar relative'>
           <h2 className='text-lg font-bold mb-4 border-b pb-2 sticky top-0 bg-white z-10'>{parentCategory?.name || 'Danh mục'}</h2>
           <ul className='space-y-2'>
-            <li>
-              <button
-                onClick={() => handleSubCategoryClick()}
-                className={`w-full text-left px-2 py-1.5 rounded-sm transition-colors ${!subId ? 'bg-[#ee4d2d] text-white font-medium' : 'hover:text-[#ee4d2d] text-gray-700'}`}
-              >
-                View All
-              </button>
-            </li>
             {subCategories.map(sub => {
               const hasSub = sub.subCategories && sub.subCategories.length > 0;
               const isExpanded = expandedCats.includes(sub.id.toString());
@@ -706,6 +769,56 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
                    ]} 
                    className={currentPrice ? 'border-[#ee4d2d] rounded-md' : ''}
                 />
+                <Popover
+                  content={
+                    <div className="flex flex-col gap-3 p-1">
+                      <div className="flex items-center gap-2">
+                        <InputNumber 
+                          placeholder="Min ₫" 
+                          value={localMinPrice} 
+                          onChange={setLocalMinPrice} 
+                          style={{ width: 110 }} 
+                          min={0} 
+                          onPressEnter={applyPriceRange} 
+                          formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                          parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                        />
+                        <span className="text-gray-400">-</span>
+                        <InputNumber 
+                          placeholder="Max ₫" 
+                          value={localMaxPrice} 
+                          onChange={setLocalMaxPrice} 
+                          style={{ width: 110 }} 
+                          min={0} 
+                          onPressEnter={applyPriceRange} 
+                          formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                          parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                         <Button size="small" onClick={() => {
+                            setLocalMinPrice(null);
+                            setLocalMaxPrice(null);
+                            const newParams = new URLSearchParams(searchParams);
+                            newParams.delete('minPrice');
+                            newParams.delete('maxPrice');
+                            setSearchParams(newParams, { state: location.state });
+                            setIsPricePopoverOpen(false);
+                         }}>Clear</Button>
+                         <Button type="primary" className="bg-[#ee4d2d]" size="small" onClick={applyPriceRange}>Apply</Button>
+                      </div>
+                    </div>
+                  }
+                  title="Khoảng giá"
+                  trigger="click"
+                  open={isPricePopoverOpen}
+                  onOpenChange={setIsPricePopoverOpen}
+                  placement="bottom"
+                >
+                  <Button className={`${(minPriceParam || maxPriceParam) ? 'border-[#ee4d2d] text-[#ee4d2d]' : ''}`}>
+                     Price Range { (minPriceParam || maxPriceParam) && '(Active)' } <DownOutlined className="text-[10px]" />
+                  </Button>
+                </Popover>
                  <div className="w-full flex items-center">
                 <Input
                   value={localSearchKeyword}
@@ -716,8 +829,17 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
                     setActiveSearchImage(null);
                     setLocalImageProducts([]);
                     setPage(1); 
+                    if (mode === 'search') {
+                      const newParams = new URLSearchParams(searchParams);
+                      if (localSearchKeyword) {
+                        newParams.set('q', localSearchKeyword);
+                      } else {
+                        newParams.delete('q');
+                      }
+                      setSearchParams(newParams, { state: location.state });
+                    }
                   }}
-                  placeholder={`Search products in this category`}
+                  placeholder={`Search products`}
                   className='rounded-full flex-1 bg-white border-gray-300 hover:border-[#ee4d2d] focus:border-[#ee4d2d]'
                   prefix={<SearchOutlined className='text-gray-400' />}
                   suffix={
@@ -775,7 +897,7 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
           ) : (
             <>
               {products.length === 0 ? (
-                <div className='text-center text-gray-500 py-10'>No products found in this category.</div>
+                <div className='text-center text-gray-500 py-10'>No products found</div>
               ) : (
                 <div className='grid grid-cols-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4'>
                   {products.map(renderProductCard)}

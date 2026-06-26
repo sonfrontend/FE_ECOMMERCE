@@ -154,14 +154,25 @@ const AppHeader: React.FC = () => {
       .catch(err => console.error('SignalR Connection Error: ', err));
 
     connection.on('ReceiveNotification', (notif: Notification) => {
-      setNotifications(prev => [notif, ...prev]);
-      message.info(`Bạn có thông báo mới: ${notif.title}`);
+      if (notif.type !== 'System') {
+        setNotifications(prev => [notif, ...prev]);
+        message.info(`Bạn có thông báo mới: ${notif.title}`);
+        window.dispatchEvent(new CustomEvent('receive-notification', { detail: notif }));
+      }
     });
 
     return () => {
       connection.stop();
     };
   }, [isLoggedIn, userInfo?.id]);
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      notificationService.getMyNotifications().then(data => {
+        setNotifications(data.filter((n: any) => n.type !== 'System'));
+      }).catch(err => console.error('Lỗi lấy thông báo', err));
+    }
+  }, [isLoggedIn]);
 
   const handleMarkAsRead = async (id: number) => {
     try {
@@ -170,6 +181,17 @@ const AppHeader: React.FC = () => {
     } catch (error) {
       console.log('Error marking as read:', error);
     }
+  };
+
+  const handleNotificationClick = async (item: Notification) => {
+    if (!item.isRead) {
+      await handleMarkAsRead(item.id);
+    }
+    // Navigate based on type
+    if (item.type === 'OrderStatusChanged') {
+      navigate('/manage', { state: { tab: '2' } });
+    }
+    // Add more types here if necessary
   };
 
   const handleMarkAllAsRead = async () => {
@@ -194,7 +216,7 @@ const AppHeader: React.FC = () => {
           renderItem={(item) => (
             <List.Item 
               className={`cursor-pointer !px-5 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${!item.isRead ? 'bg-blue-50/30' : ''}`}
-              onClick={() => handleMarkAsRead(item.id)}
+              onClick={() => handleNotificationClick(item)}
             >
               <List.Item.Meta
                 title={<Text className={!item.isRead ? 'font-semibold' : 'text-gray-600'} ellipsis>{item.title}</Text>}

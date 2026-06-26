@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, Input, List, Typography, Badge, Avatar } from 'antd';
-import { CloseOutlined, SendOutlined, UserOutlined } from '@ant-design/icons';
+import { CloseOutlined, SendOutlined, UserOutlined, PictureOutlined } from '@ant-design/icons';
 import chatIcon from '../assets/icons/chat.png';
 import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import http from '@/apis/http';
@@ -18,6 +18,11 @@ const LiveChatWidget: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [unreadCount, setUnreadCount] = useState(0); 
   const [sharedProduct, setSharedProduct] = useState<any>(null);
+
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -102,8 +107,38 @@ const LiveChatWidget: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isOpen]);
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedImageFile(file);
+    setPreviewImageUrl(URL.createObjectURL(file));
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleSend = async () => {
-    if (!inputValue.trim() && !sharedProduct) return;
+    if (!inputValue.trim() && !sharedProduct && !selectedImageFile) return;
+
+    let uploadedImageName: string | undefined = undefined;
+
+    if (selectedImageFile) {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append('file', selectedImageFile);
+      formData.append('folder', 'images/messages');
+
+      try {
+        const uploadRes = await http.post('/api/Chat/upload-image', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        if (uploadRes.data && uploadRes.data.imageName) {
+          uploadedImageName = uploadRes.data.imageName;
+        }
+      } catch (error) {
+        console.error('Lỗi upload ảnh', error);
+        setIsUploading(false);
+        return; 
+      }
+    }
 
     let textToSend = inputValue;
     let displayMessage = textToSend;
@@ -112,11 +147,19 @@ const LiveChatWidget: React.FC = () => {
     }
 
     try {
-      await http.post(`/api/Chat/messages`, { message: displayMessage });
+      const payload: any = { message: displayMessage };
+      if (uploadedImageName) {
+        payload.imageName = uploadedImageName;
+      }
+      await http.post(`/api/Chat/messages`, payload);
       setInputValue('');
       setSharedProduct(null);
+      setSelectedImageFile(null);
+      setPreviewImageUrl(null);
     } catch (error) {
       console.error("Lỗi khi gửi tin nhắn", error);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -205,6 +248,15 @@ const LiveChatWidget: React.FC = () => {
                   <div key={index} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[80%] p-3 rounded-2xl ${isMe ? 'bg-[#ee4d2d] text-white rounded-br-sm' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm'}`}>
                       <div className="text-sm">{renderMessageWithLinks(msg.message, isMe)}</div>
+                      {msg.imageName && (
+                        <div className="mt-2 mb-1 rounded overflow-hidden flex justify-end">
+                          <img 
+                            src={getImageUrl(msg.imageName)} 
+                            alt="attachment" 
+                            className="max-w-full rounded-lg max-h-[200px] object-cover"
+                          />
+                        </div>
+                      )}
                       <div className={`text-[10px] mt-1 text-right ${isMe ? 'text-rose-200' : 'text-gray-400'}`}>
                         {new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                       </div>
@@ -238,7 +290,38 @@ const LiveChatWidget: React.FC = () => {
               </div>
             )}
 
+            {previewImageUrl && (
+              <div className="px-3 py-2 mb-3 bg-gray-50 rounded-lg flex flex-col border border-gray-100 relative">
+                <div className="text-[11px] text-gray-500 mb-1.5 font-medium flex justify-between">
+                  <span>Ảnh đính kèm</span>
+                  <CloseOutlined 
+                    className="cursor-pointer hover:text-gray-800" 
+                    onClick={() => {
+                      setSelectedImageFile(null);
+                      setPreviewImageUrl(null);
+                    }} 
+                  />
+                </div>
+                <div className="flex justify-center bg-black/5 rounded-md overflow-hidden relative" style={{ maxHeight: '120px' }}>
+                  <img src={previewImageUrl} alt="preview" className="max-h-full object-contain" />
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2 bg-white flex-row items-end">
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+              />
+              <Button 
+                type="text"
+                icon={<PictureOutlined className="text-[20px]" />} 
+                onClick={() => fileInputRef.current?.click()} 
+                className="text-gray-400 hover:text-gray-500 mb-0.5 px-2"
+              />
               <Input.TextArea 
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
@@ -258,7 +341,9 @@ const LiveChatWidget: React.FC = () => {
                 shape="circle" 
                 icon={<SendOutlined />} 
                 onClick={handleSend}
-                className="bg-[#ee4d2d] hover:!bg-[#f05d40] border-none shrink-0"
+                disabled={!inputValue.trim() && !sharedProduct && !selectedImageFile}
+                loading={isUploading}
+                className="bg-[#ee4d2d] hover:!bg-[#f05d40] border-none shrink-0 mb-0.5"
               />
             </div>
           </div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Typography, message, Tag, Button, Popconfirm, Space } from 'antd';
-import { DeleteOutlined, UserOutlined } from '@ant-design/icons';
+import { DeleteOutlined, UserOutlined, StarOutlined } from '@ant-design/icons';
 import http from '@/apis/http';
 
 const { Title } = Typography;
@@ -59,7 +59,14 @@ export default function AdminUserManage() {
     {
       title: 'Vai trò',
       key: 'role',
-      render: () => <Tag color="blue" icon={<UserOutlined />}>Người dùng</Tag> // Giao diện demo, vì API chưa trả role chi tiết
+      render: (_: any, record: any) => {
+        const isUser = !record.role || record.role.toLowerCase() === 'người dùng' || record.role.toLowerCase() === 'user';
+        return (
+          <Tag color={isUser ? "blue" : "red"} icon={isUser ? <UserOutlined /> : <StarOutlined />}>
+            {record.role || 'Người dùng'}
+          </Tag>
+        );
+      }
     },
     {
       title: 'Hành động',

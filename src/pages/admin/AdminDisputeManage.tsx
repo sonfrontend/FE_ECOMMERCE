@@ -66,7 +66,7 @@ export default function AdminDisputeManage() {
       title: 'Bằng chứng',
       dataIndex: 'evidenceUrl',
       key: 'evidenceUrl',
-      render: (url: string) => url ? <Image src={getImageUrl(url, 'complants') ??""} width={50} height={50} className="object-cover rounded-md" /> : 'Không có'
+      render: (url: string) => url ? <Image src={getImageUrl(url) ??""} width={50} height={50} className="object-cover rounded-md" /> : 'Không có'
     },
 
     {
@@ -141,7 +141,7 @@ export default function AdminDisputeManage() {
                 </Descriptions.Item>
                 <Descriptions.Item label="Ảnh Admin" span={2}>
                   {record.status === 'Resolved' && record.adminEvidenceUrl 
-                    ? <Image src={record.adminEvidenceUrl} width={80} height={80} className="object-cover rounded-md shadow-sm" /> 
+                    ? <Image src={getImageUrl(record.adminEvidenceUrl) ?? ""} width={80} height={80} className="object-cover rounded-md shadow-sm" /> 
                     : <span className="text-gray-400">-</span>}
                 </Descriptions.Item>
               </Descriptions>
@@ -190,7 +190,7 @@ export default function AdminDisputeManage() {
             </Descriptions.Item>
             {selectedDispute.adminEvidenceUrl && (
               <Descriptions.Item label="Bằng chứng từ Admin">
-                <Image src={selectedDispute.adminEvidenceUrl} width={100} height={100} className="object-cover rounded-md" />
+                <Image src={getImageUrl(selectedDispute.adminEvidenceUrl) ?? ""} width={100} height={100} className="object-cover rounded-md" />
               </Descriptions.Item>
             )}
           </Descriptions>

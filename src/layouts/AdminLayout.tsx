@@ -37,7 +37,6 @@ export default function AdminLayout() {
     if (path.includes('/admin/orders')) return 'orders';
     if (path.includes('/admin/vouchers')) return 'vouchers';
     if (path.includes('/admin/products')) return 'products';
-    if (path.includes('/admin/payments')) return 'payments';
     if (path.includes('/admin/wallets')) return 'wallets';
     if (path.includes('/admin/shipping-fees')) return 'shipping-fees';
     if (path.includes('/admin/chat')) return 'chat';
@@ -49,14 +48,19 @@ export default function AdminLayout() {
 
   const [activeTab, setActiveTab] = useState(getSelectedKey());
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  useEffect(() => {
+    setActiveTab(getSelectedKey());
+  }, [location.pathname]);
 
   useEffect(() => {
     fetchNotifications();
 
     const connection = new signalR.HubConnectionBuilder()
       .withUrl(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/hubs/notification`, {
-        accessTokenFactory: () => localStorage.getItem('token') || ''
+        accessTokenFactory: () => localStorage.getItem('accessToken') || ''
       })
       .withAutomaticReconnect()
       .build();
@@ -64,7 +68,11 @@ export default function AdminLayout() {
     connection.start().catch(err => console.error('SignalR Connection Error: ', err));
 
     connection.on('ReceiveNotification', (notification) => {
-      setNotifications(prev => [notification, ...prev]);
+      if (notification.type === 'System') {
+        setNotifications(prev => [notification, ...prev]);
+        // Bắn sự kiện ra ngoài để các trang con có thể lắng nghe
+        window.dispatchEvent(new CustomEvent('admin-receive-notification', { detail: notification }));
+      }
     });
 
     return () => {
@@ -75,7 +83,7 @@ export default function AdminLayout() {
   const fetchNotifications = async () => {
     try {
       const res = await http.get('/api/Notification');
-      setNotifications(res.data);
+      setNotifications(res.data.filter((n: any) => n.type === 'System'));
     } catch (error) {
       console.error('Failed to fetch notifications', error);
     }
@@ -115,8 +123,9 @@ export default function AdminLayout() {
               className={`cursor-pointer hover:bg-gray-50 transition-colors p-2 rounded-lg ${!item.isRead ? 'bg-blue-50/50' : ''}`}
               onClick={() => {
                 if (!item.isRead) markAsRead(item.id);
-                if (item.type === 'CHECKOUT' || item.type === 'REQUEST_REFUND') {
-                  navigate('/admin/orders');
+                if (item.type === 'System' && item.relatedId) {
+                  setIsPopoverOpen(false);
+                  navigate('/admin/orders', { state: { highlightOrderId: item.relatedId } });
                   setActiveTab('orders');
                 }
               }}
@@ -147,8 +156,7 @@ export default function AdminLayout() {
     { key: 'products', icon: <AppstoreOutlined />, label: 'Quản lý sản phẩm' },
     { key: 'orders', icon: <ShoppingCartOutlined />, label: 'Quản lý đơn hàng' },
     { key: 'vouchers', icon: <DollarOutlined />, label: 'Quản lý Voucher' },
-    { key: 'payments', icon: <DollarOutlined />, label: 'Quản lý thanh toán' },
-    { key: 'wallets', icon: <DollarOutlined />, label: 'Dòng tiền VNPAY' },
+    { key: 'wallets', icon: <DollarOutlined />, label: 'Quản lý dòng tiền' },
     { key: 'shipping-fees', icon: <ShoppingCartOutlined />, label: 'Quản lý phí ship' },
     { key: 'reviews', icon: <StarOutlined />, label: 'Quản lý đánh giá' },
     { key: 'promotions', icon: <NotificationOutlined />, label: 'Banner & Khuyến mãi' },
@@ -199,7 +207,7 @@ export default function AdminLayout() {
         >
           <Title level={5} className='mb-0! text-gray-700 font-semibold'>Trang quản trị hệ thống E-Commerce</Title>
           <div className="flex items-center gap-6 h-full">
-            <Popover placement="bottomRight" title={<span className="font-bold text-gray-800">Thông báo mới</span>} content={notificationContent} trigger="click">
+            <Popover placement="bottomRight" title={<span className="font-bold text-gray-800">Thông báo mới</span>} content={notificationContent} trigger="click" open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
               <Badge count={unreadCount} overflowCount={99} className="cursor-pointer flex items-center">
                 <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center hover:bg-blue-100 transition-colors border border-blue-100 shadow-sm">
                   <BellOutlined className="text-xl text-blue-600" />

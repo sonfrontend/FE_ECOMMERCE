@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Table, message, Typography, Button, Space, Tag, Tabs, Select, Modal, Input, Checkbox, InputNumber, Radio, Upload } from 'antd';
 import { CheckCircleOutlined, UploadOutlined } from '@ant-design/icons';
+import { useLocation } from 'react-router-dom';
 import http from '@/apis/http';
 import { getStatusColor, getStatusText } from '@/utils/getStatus';
 import { getImageUrl } from '@/utils/imageUrl';
@@ -15,6 +16,8 @@ const OrderManage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>('All');
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [expandedRowKeys, setExpandedRowKeys] = useState<readonly React.Key[]>([]);
+  const location = useLocation();
   
   const [isProposeModalVisible, setIsProposeModalVisible] = useState(false);
   const [proposingOrderId, setProposingOrderId] = useState<number | null>(null);
@@ -27,6 +30,7 @@ const OrderManage: React.FC = () => {
   const [isFullRefund, setIsFullRefund] = useState(false);
   const [requiresRefund, setRequiresRefund] = useState(false);
   const [refundPaymentMethod, setRefundPaymentMethod] = useState<string>('COD');
+  const [originalPaymentMethod, setOriginalPaymentMethod] = useState<string>('COD');
   const [refundAmount, setRefundAmount] = useState<number | null>(null);
   const [adminEvidenceUrl, setAdminEvidenceUrl] = useState('');
   const [finalOrderStatus, setFinalOrderStatus] = useState<string>('');
@@ -74,7 +78,30 @@ const OrderManage: React.FC = () => {
         setCurrentUserId(decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] || decoded.sub || '');
       } catch (err) { }
     }
+
+    const handleNotification = (e: any) => {
+      fetchOrders();
+    };
+
+    window.addEventListener('admin-receive-notification', handleNotification);
+
+    return () => {
+      window.removeEventListener('admin-receive-notification', handleNotification);
+    };
   }, []);
+
+  useEffect(() => {
+    if (location.state && (location.state as any).highlightOrderId) {
+      const orderId = Number((location.state as any).highlightOrderId);
+      if (orderId && !expandedRowKeys.includes(orderId)) {
+        setExpandedRowKeys(prev => [...prev, orderId]);
+      }
+    }
+    
+    if (location.state && (location.state as any).activeTab) {
+      setActiveTab((location.state as any).activeTab);
+    }
+  }, [location.state]);
 
   const handleProposeResolution = async () => {
     if (!currentComplaint || !selectedTemplate) {
@@ -209,7 +236,9 @@ const OrderManage: React.FC = () => {
                     const res = await http.get(`/api/Dispute/order/${record.id}/complaint`);
                     setCurrentComplaint(res.data);
                     setProposingOrderId(record.id);
-                    setRefundPaymentMethod(record.paymentMethod || 'COD');
+                    const originalPayment = record.paymentMethod || 'COD';
+                    setOriginalPaymentMethod(originalPayment);
+                    setRefundPaymentMethod(originalPayment === 'VNPAY' ? 'VNPAY' : 'COD');
                     setIsProposeModalVisible(true);
                   } catch (err: any) {
                     message.error(err?.response?.data || 'Không tìm thấy thông tin khiếu nại');
@@ -283,6 +312,8 @@ const OrderManage: React.FC = () => {
         rowKey='id'
         loading={loading}
         expandable={{
+          expandedRowKeys: expandedRowKeys,
+          onExpandedRowsChange: (keys) => setExpandedRowKeys(keys),
           expandedRowRender: (record) => (
             <div className='p-4 bg-gray-50'>
               <p>
@@ -339,7 +370,7 @@ const OrderManage: React.FC = () => {
                       {record.complaintEvidenceUrl && (
                         <div className="mt-3">
                           <strong>Bằng chứng của khách:</strong><br/>
-                          <img src={getImageUrl(record.complaintEvidenceUrl,'complants')} alt="Bằng chứng của khách" style={{ maxWidth: 100, maxHeight: 100, borderRadius: 4, objectFit: 'cover', marginTop: 8 }} />
+                          <img src={getImageUrl(record.complaintEvidenceUrl)} alt="Bằng chứng của khách" style={{ maxWidth: 100, maxHeight: 100, borderRadius: 4, objectFit: 'cover', marginTop: 8 }} />
                         </div>
                       )}
                     </div>
@@ -366,7 +397,7 @@ const OrderManage: React.FC = () => {
                         {record.adminEvidenceUrl && (
                           <div className="mt-3">
                             <strong>Bằng chứng đính kèm:</strong><br/>
-                            <img src={getImageUrl(record.adminEvidenceUrl, 'complants')} alt="Bằng chứng Admin" style={{ maxWidth: 100, maxHeight: 100, borderRadius: 4, objectFit: 'cover', marginTop: 8 }} />
+                            <img src={getImageUrl(record.adminEvidenceUrl)} alt="Bằng chứng Admin" style={{ maxWidth: 100, maxHeight: 100, borderRadius: 4, objectFit: 'cover', marginTop: 8 }} />
                           </div>
                         )}
                       </div>
@@ -397,7 +428,7 @@ const OrderManage: React.FC = () => {
             {currentComplaint.evidenceUrl && (
               <div className="mt-2">
                 <strong>Bằng chứng:</strong> <br/>
-                <img src={getImageUrl(currentComplaint.evidenceUrl, 'complants')} alt="Bằng chứng" style={{ maxWidth: 100, maxHeight: 100, marginTop: 8, borderRadius: 4 }} />
+                <img src={getImageUrl(currentComplaint.evidenceUrl)} alt="Bằng chứng" style={{ maxWidth: 100, maxHeight: 100, marginTop: 8, borderRadius: 4 }} />
               </div>
             )}
           </div>
@@ -466,14 +497,17 @@ const OrderManage: React.FC = () => {
             <Checkbox checked={restoresInventory} onChange={e => setRestoresInventory(e.target.checked)}>Ghi nhận lại tồn kho (Hoàn trả sản phẩm)</Checkbox>
             
             {requiresRefund && (
-              <div className="mt-2">
-                <label className="block mb-1 font-medium">Phương thức hoàn tiền</label>
-                <Radio.Group value={refundPaymentMethod} onChange={e => setRefundPaymentMethod(e.target.value)}>
-                  <Radio value="VNPAY">Hoàn qua VNPay</Radio>
-                  <Radio value="COD">Thỏa thuận ngoài (Chuyển khoản / Tiền mặt)</Radio>
-                </Radio.Group>
-              </div>
-            )}
+                <div className="mt-2">
+                  <label className="block mb-1 font-medium">Phương thức hoàn tiền</label>
+                  <Radio.Group value={refundPaymentMethod} onChange={e => setRefundPaymentMethod(e.target.value)}>
+                    <Radio value="VNPAY" disabled={originalPaymentMethod !== 'VNPAY'}>Hoàn qua VNPay</Radio>
+                    <Radio value="COD">Thỏa thuận ngoài (Chuyển khoản / Tiền mặt)</Radio>
+                  </Radio.Group>
+                  {originalPaymentMethod !== 'VNPAY' && (
+                    <div className="text-xs text-orange-500 mt-1">Đơn hàng thanh toán COD (tiền mặt) không thể hoàn tiền qua VNPay.</div>
+                  )}
+                </div>
+              )}
 
             <div className="mt-2">
               <label className="block mb-1 font-medium">Hình ảnh minh họa (nếu có)</label>
@@ -502,7 +536,7 @@ const OrderManage: React.FC = () => {
                 </Upload>
                 {adminEvidenceUrl && (
                   <div className="mt-2">
-                    <img src={getImageUrl(adminEvidenceUrl,'complants')} alt="Bằng chứng Admin" style={{ maxWidth: 100, maxHeight: 100, borderRadius: 4, objectFit: 'cover' }} />
+                    <img src={getImageUrl(adminEvidenceUrl)} alt="Bằng chứng Admin" style={{ maxWidth: 100, maxHeight: 100, borderRadius: 4, objectFit: 'cover' }} />
                   </div>
                 )}
               </div>

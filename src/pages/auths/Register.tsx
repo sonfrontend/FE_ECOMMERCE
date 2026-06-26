@@ -73,6 +73,22 @@ const Register = () => {
         </Form.Item>
 
         <Form.Item
+          label={<span className='font-medium text-gray-700 text-sm'>Số điện thoại</span>}
+          name='phoneNumber'
+          hasFeedback
+          rules={[
+            { required: true, message: 'Vui lòng nhập số điện thoại!' },
+            {
+              pattern: /^(84|0[3|5|7|8|9])+([0-9]{8})\b$/,
+              message: 'Số điện thoại không hợp lệ (VD: 0912345678)'
+            }
+          ]}
+          className='mb-4'
+        >
+          <Input placeholder='Số điện thoại của bạn' className='rounded-md text-sm' />
+        </Form.Item>
+
+        <Form.Item
           label={<span className='font-medium text-gray-700 text-sm'>Mật khẩu</span>}
           name='password'
           hasFeedback

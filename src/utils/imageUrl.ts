@@ -1,23 +1,17 @@
-export const getImageUrl = (url: string | undefined | null, type?: "complants" | "messages" ) => {
+
+
+export const getImageUrl = (url: string | undefined | null, type?: 'images') => {
   if (!url) return '';
   if (url.startsWith('http')) return url;
   
   // Xóa gạch chéo đầu tiên để nối mượt mà
   let cleanUrl = url.startsWith('/') ? url.substring(1) : url;
 
-  if (type === 'complants' ) {
-    return `https://res.cloudinary.com/dss8hptah/image/upload/images/complants/${cleanUrl}`;
+  // Nếu url đã chứa sẵn thư mục (VD: images/products/abc.jpg)
+  if (type === 'images') {
+    return `https://res.cloudinary.com/dss8hptah/image/upload/images/${cleanUrl}`;
   }
 
-  
-  if (type === 'messages' ) {
-    return `https://res.cloudinary.com/dss8hptah/image/upload/images/messages/${cleanUrl}`;
-  }
-
-
-  if(cleanUrl.startsWith('images/')) {
-    cleanUrl = cleanUrl.replace('images/', ''); // Loại bỏ 'images/' nếu đã có
-  }
-
+  // Nếu là ảnh cũ (chỉ có abc.jpg), mặc định thư mục gốc của nó trên Cloudinary là images/
   return `https://res.cloudinary.com/dss8hptah/image/upload/${cleanUrl}`;
 };

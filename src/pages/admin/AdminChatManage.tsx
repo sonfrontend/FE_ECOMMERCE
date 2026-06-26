@@ -403,7 +403,7 @@ const AdminChatManage: React.FC = () => {
                         {msg.imageName && (
                           <div className="mb-2">
                             <img 
-                              src={`https://res.cloudinary.com/dss8hptah/image/upload/images/messages/${msg.imageName}`} 
+                              src={getImageUrl(msg.imageName) ?? ''} 
                               alt="attachment" 
                               className="max-w-full rounded-lg max-h-[250px] object-cover"
                             />

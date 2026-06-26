@@ -6,51 +6,55 @@ import { getImageUrl } from '@/utils/imageUrl';
 
 const { Title } = Typography;
 
-const CustomImageUpload = ({ value, onChange, placeholder = "Nhập URL hoặc tải ảnh lên" }: { value?: string, onChange?: (val: string) => void, placeholder?: string }) => {
-  const [uploading, setUploading] = useState(false);
+const CustomImageUpload = ({ value, onChange, placeholder = "Nhập URL hoặc tải ảnh lên" }: { value?: string | File, onChange?: (val: string | File) => void, placeholder?: string }) => {
+  const [previewUrl, setPreviewUrl] = useState('');
 
-  const customRequest = async (options: any) => {
-    const { file, onSuccess, onError } = options;
-    const formData = new FormData();
-    formData.append('file', file);
-    setUploading(true);
-    try {
-      const res = await http.post('/api/Chat/upload-image', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      if (onChange) {
-        onChange(res.data.url);
-      }
-      onSuccess("ok");
-    } catch (err: any) {
-      console.error(err);
-      onError(err);
-      message.error("Tải ảnh thất bại!");
-    } finally {
-      setUploading(false);
+  useEffect(() => {
+    if (!value) {
+      setPreviewUrl('');
+      return;
     }
+    if (typeof value === 'string') {
+      setPreviewUrl(getImageUrl(value) ?? '');
+    } else if (value instanceof File) {
+      const url = URL.createObjectURL(value);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+  }, [value]);
+
+  const beforeUpload = (file: File) => {
+    if (onChange) {
+      onChange(file);
+    }
+    return false; // Prevent auto upload
   };
 
   return (
     <div className="flex items-center gap-2">
-      {value && (
+      {previewUrl && (
         <div className="w-12 h-12 flex-shrink-0 border rounded overflow-hidden relative group">
-          <img src={getImageUrl(value) ?? ''} alt="preview" className="w-full h-full object-cover" />
+           <img 
+          src={(previewUrl) ?? ''} 
+          alt="icon" 
+          className="w-full h-full object-cover"
+        />
         </div>
       )}
       <Input
-        value={value}
+        value={typeof value === 'string' ? value : ''}
         onChange={(e) => onChange && onChange(e.target.value)}
         placeholder={placeholder}
         className="flex-1"
+        readOnly={value instanceof File}
       />
       <Upload
-        customRequest={customRequest}
+        beforeUpload={beforeUpload}
         showUploadList={false}
         accept="image/*"
       >
-        <Button icon={uploading ? <LoadingOutlined /> : <UploadOutlined />}>
-          {uploading ? 'Đang tải...' : 'Tải lên'}
+        <Button icon={<UploadOutlined />}>
+          Tải lên
         </Button>
       </Upload>
     </div>
@@ -63,6 +67,7 @@ const AdminCategoryManage: React.FC = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form] = Form.useForm();
+  const [saving, setSaving] = useState(false);
 
   const fetchCategories = async () => {
     try {
@@ -107,17 +112,41 @@ const AdminCategoryManage: React.FC = () => {
 
   const handleSave = async (values: any) => {
     try {
+      setSaving(true);
+      let finalIconUrl = values.iconUrl;
+
+      // Upload if it's a new file
+      if (values.iconUrl instanceof File) {
+        const formData = new FormData();
+        formData.append('file', values.iconUrl);
+        formData.append('folder', 'images/categories'); // Save categories to images/categories folder
+        // Do NOT send oldImageUrl here to prevent premature deletion
+
+        const res = await http.post('/api/Chat/upload-image', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        finalIconUrl = res.data.imageName;
+        form.setFieldsValue({ iconUrl: finalIconUrl });
+      }
+
+      const payload = {
+        ...values,
+        iconUrl: finalIconUrl
+      };
+
       if (editingId) {
-        await http.put(`/api/Category/admin/${editingId}`, values);
+        await http.put(`/api/Category/admin/${editingId}`, payload);
         message.success('Cập nhật danh mục thành công');
       } else {
-        await http.post('/api/Category/admin', values);
+        await http.post('/api/Category/admin', payload);
         message.success('Tạo danh mục mới thành công');
       }
       setIsModalVisible(false);
       fetchCategories();
     } catch (error: any) {
-      message.error(error.response?.data || 'Có lỗi xảy ra');
+      message.error(error.response?.data?.message || error.response?.data || 'Có lỗi xảy ra');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -144,9 +173,10 @@ const AdminCategoryManage: React.FC = () => {
       title: 'Icon',
       dataIndex: 'iconUrl',
       key: 'iconUrl',
-      render: (url: string) => url ? <img src={getImageUrl(url) ?? ''} alt="icon" className="w-8 h-8 object-cover rounded border" /> : '-'
-    },
-    {
+      render: (url: string) => url ? (
+        <img src={getImageUrl(url) ?? ''} alt="icon" className="w-8 h-8 object-cover rounded border" />
+      ) : '-'
+    },{
       title: 'Hành động',
       key: 'action',
       render: (_: any, record: any) => (
@@ -209,7 +239,7 @@ const AdminCategoryManage: React.FC = () => {
 
           <div className="flex justify-end gap-2 mt-6 border-t pt-4">
             <Button onClick={() => setIsModalVisible(false)}>Hủy</Button>
-            <Button type="primary" htmlType="submit" className="bg-[#82b541] border-none">
+            <Button type="primary" htmlType="submit" loading={saving} className="bg-[#82b541] border-none">
               Lưu Danh mục
             </Button>
           </div>

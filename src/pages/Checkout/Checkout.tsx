@@ -283,7 +283,8 @@ const Checkout: React.FC = () => {
       try {
         await http.post('/api/Notification/notify-admin', {
           actionCode: 'CHECKOUT',
-          details: `Đơn hàng #${response.data.orderId || ''} trị giá ${total.toLocaleString('vi-VN')}đ`
+          details: `Đơn hàng #${response.data.orderId || ''} trị giá ${total.toLocaleString('vi-VN')}đ`,
+          relatedId: response.data.orderId ? response.data.orderId.toString() : undefined
         });
       } catch (err) {
         console.error('Failed to notify admin', err);

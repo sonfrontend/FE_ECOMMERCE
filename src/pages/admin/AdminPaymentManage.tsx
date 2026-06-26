@@ -164,11 +164,7 @@ const AdminPaymentManage: React.FC = () => {
   ];
 
   return (
-    <div className='bg-white p-6 rounded-lg shadow-sm w-full h-full'>
-      <Title level={3} className='mb-6'>
-        Quản lý Thanh toán
-      </Title>
-      
+    <div className='w-full'>
       <div className="flex gap-4 mb-6 flex-wrap">
         <Input 
           placeholder="Tìm theo Mã ĐH, Tên, SĐT" 

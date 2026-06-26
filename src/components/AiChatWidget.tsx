@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, Input, Typography, Badge, Avatar } from 'antd';
-import { MessageOutlined, CloseOutlined, SendOutlined, UserOutlined,RobotOutlined  } from '@ant-design/icons';
+import { MessageOutlined, CloseOutlined, SendOutlined, UserOutlined,RobotOutlined, PictureOutlined } from '@ant-design/icons';
 import aiIcon from '../assets/icons/ai.svg';
 import http from '@/apis/http';
 import { jwtDecode } from 'jwt-decode';
@@ -26,6 +26,11 @@ const AiChatWidget: React.FC = () => {
   const isOpenRef = useRef(isOpen);
   const [isTyping, setIsTyping] = useState(false);
   const [sharedProduct, setSharedProduct] = useState<any | null>(null);
+  
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleShare = (e: any) => {
@@ -67,8 +72,38 @@ const AiChatWidget: React.FC = () => {
     }
   }, [messages, isOpen, isTyping]);
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedImageFile(file);
+    setPreviewImageUrl(URL.createObjectURL(file));
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleSend = async () => {
-    if (!inputValue.trim() && !sharedProduct) return;
+    if (!inputValue.trim() && !sharedProduct && !selectedImageFile) return;
+
+    let uploadedImageName: string | undefined = undefined;
+
+    if (selectedImageFile) {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append('file', selectedImageFile);
+      formData.append('folder', 'images/messages');
+
+      try {
+        const uploadRes = await http.post('/api/Chat/upload-image', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        if (uploadRes.data && uploadRes.data.imageName) {
+          uploadedImageName = uploadRes.data.imageName;
+        }
+      } catch (error) {
+        console.error('Lỗi upload ảnh', error);
+        setIsUploading(false);
+        return; 
+      }
+    }
 
     const tempId = `temp_${Date.now()}`;
     let textToSend = inputValue;
@@ -78,12 +113,13 @@ const AiChatWidget: React.FC = () => {
     let sharedProductId = null;
     if (sharedProduct) {
       displayMessage = `__PRODUCT__${JSON.stringify(sharedProduct)}__PRODUCT__\n${textToSend}`.trim();
-      sharedProductId = sharedProduct.productId;
+      sharedProductId = sharedProduct.id || sharedProduct.productId;
     }
     
     const newMsg = {
       id: tempId,
       message: displayMessage,
+      imageName: uploadedImageName,
       senderId: currentUserId,
       createdAt: new Date().toISOString(),
       status: 'sending'
@@ -92,15 +128,33 @@ const AiChatWidget: React.FC = () => {
     setMessages(prev => [...prev, newMsg]);
     setInputValue('');
     setSharedProduct(null);
+    setSelectedImageFile(null);
+    setPreviewImageUrl(null);
     setIsTyping(true);
+    setIsUploading(false);
 
     try {
+      // Lấy tối đa 10 tin nhắn gần nhất để làm ngữ cảnh (bỏ qua tin nhắn chào mừng)
+      const chatHistory = messages
+        .filter(m => m.id !== 'welcome')
+        .slice(-10)
+        .map(m => ({
+          Role: m.senderId === 'ai' ? 'model' : 'user',
+          Text: m.message
+        }));
+
       // Gọi API AI
       const payload: any = { 
         message: textToSend,
-        sharedProductId: sharedProductId 
+        history: chatHistory
       };
-
+      if (sharedProductId) {
+        payload.sharedProductId = sharedProductId;
+      }
+      if (uploadedImageName) {
+        payload.imageName = uploadedImageName;
+      }
+      
       const res = await http.post(`/api/AiChat/ask`, payload, { timeout: 60000 });
       const replyText = res.data.reply;
       
@@ -192,6 +246,15 @@ const AiChatWidget: React.FC = () => {
                   <div className="flex flex-col relative max-w-[85%] min-w-0">
                     <div className={`px-3 py-2 rounded-[18px] relative z-10 shadow-sm text-[13px] break-words ${isMe ? 'bg-blue-50 border border-blue-100 text-blue-900 rounded-br-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm'} ${msg.status === 'sending' ? 'opacity-70' : ''}`}>
                       <div className="leading-relaxed">{renderMessageWithLinks(msg.message, isMe)}</div>
+                      {msg.imageName && (
+                        <div className="mt-2 mb-1 rounded overflow-hidden flex justify-end">
+                          <img 
+                            src={getImageUrl(msg.imageName)} 
+                            alt="attachment" 
+                            className="max-w-full rounded-lg max-h-[200px] object-cover"
+                          />
+                        </div>
+                      )}
                       <div className={`text-[10px] mt-1 text-right flex items-center justify-end gap-1 ${isMe ? 'text-blue-400' : 'text-gray-400'}`}>
                         {msg.status === 'sending' ? 'Đang gửi...' : msg.status === 'error' ? 'Lỗi' : new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                       </div>
@@ -235,7 +298,38 @@ const AiChatWidget: React.FC = () => {
               </div>
             )}
 
+            {previewImageUrl && (
+              <div className="px-3 py-2 mb-3 bg-gray-50 rounded-lg flex flex-col border border-gray-100 relative">
+                <div className="text-[11px] text-gray-500 mb-1.5 font-medium flex justify-between">
+                  <span>Ảnh đính kèm</span>
+                  <CloseOutlined 
+                    className="cursor-pointer hover:text-gray-800" 
+                    onClick={() => {
+                      setSelectedImageFile(null);
+                      setPreviewImageUrl(null);
+                    }} 
+                  />
+                </div>
+                <div className="flex justify-center bg-black/5 rounded-md overflow-hidden relative" style={{ maxHeight: '120px' }}>
+                  <img src={previewImageUrl} alt="preview" className="max-h-full object-contain" />
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2 items-end bg-gray-50/50 rounded-3xl p-1 border border-gray-100 focus-within:border-gray-300 focus-within:bg-white transition-colors">
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+              />
+              <Button 
+                type="text"
+                icon={<PictureOutlined className="text-xl" />} 
+                onClick={() => fileInputRef.current?.click()} 
+                className="text-gray-400 hover:text-gray-500 mb-0.5 ml-1 px-2"
+              />
               <Input.TextArea
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
@@ -248,14 +342,14 @@ const AiChatWidget: React.FC = () => {
                 placeholder="Hỏi AI về đơn hàng, size..."
                 autoSize={{ minRows: 1, maxRows: 3 }}
                 style={{ resize: 'none' }}
-                className="bg-transparent border-none focus:ring-0 shadow-none text-[13px] py-2 px-3"
+                className="bg-transparent border-none focus:ring-0 shadow-none text-[13px] py-2 px-1"
               />
               <Button 
                 type="primary" 
                 icon={<SendOutlined className="text-[12px] ml-0.5" />} 
                 onClick={handleSend}
-                disabled={!inputValue.trim() && !sharedProduct}
-                loading={isTyping}
+                disabled={!inputValue.trim() && !sharedProduct && !selectedImageFile}
+                loading={isTyping || isUploading}
                 className="bg-[#ee4d2d] hover:bg-[#d74325] border-none rounded-full h-[36px] w-[36px] min-w-0 flex items-center justify-center mb-0.5 mr-0.5 shadow-sm shrink-0"
               />
             </div>

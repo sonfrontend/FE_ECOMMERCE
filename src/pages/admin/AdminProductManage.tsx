@@ -3,39 +3,33 @@ import { Table, Button, Space, Typography, Popconfirm, message, Modal, Form, Inp
 import { EditOutlined, DeleteOutlined, PlusOutlined, UploadOutlined, LoadingOutlined } from '@ant-design/icons';
 import http from '@/apis/http';
 import { getImageUrl } from '@/utils/imageUrl';
+import SafeImage from '@/components/SafeImage';
 
 const { Title } = Typography;
 
-const CustomImageUpload = ({ value, onChange, placeholder = "Nhập URL hoặc tải ảnh lên" }: { value?: string, onChange?: (val: string) => void, placeholder?: string }) => {
-  const [uploading, setUploading] = useState(false);
+const CustomImageUpload = ({ value, onChange, placeholder = "Nhập URL hoặc tải ảnh lên" }: { value?: any, onChange?: (val: any) => void, placeholder?: string }) => {
   
-  const customRequest = async (options: any) => {
-    const { file, onSuccess, onError } = options;
-    const formData = new FormData();
-    formData.append('file', file);
-    setUploading(true);
-    try {
-      const res = await http.post('/api/Chat/upload-image', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      const url = res.data.imageName;
-      if (onChange) onChange(url);
-      onSuccess("ok");
-      message.success('Tải ảnh thành công');
-    } catch (err) {
-      onError(err);
-      message.error('Tải ảnh thất bại');
-    } finally {
-      setUploading(false);
-    }
+  const beforeUpload = (file: File) => {
+    const previewUrl = URL.createObjectURL(file);
+    if (onChange) onChange({ file, previewUrl });
+    return false; // Prevent auto upload
   };
+
+  const displayUrl = typeof value === 'string' ? (value ?  getImageUrl(value) : '') : (value?.previewUrl || '');
+  const inputValue = typeof value === 'string' ? value : '';
 
   return (
     <div className="flex items-center gap-2">
-      {value && <img src={getImageUrl(value)} alt="preview" className="w-10 h-10 object-cover rounded border" />}
-      <Input value={value} onChange={e => onChange?.(e.target.value)} placeholder={placeholder} className="flex-1" />
-      <Upload customRequest={customRequest} showUploadList={false}>
-        <Button icon={uploading ? <LoadingOutlined /> : <UploadOutlined />}>Tải lên</Button>
+      {displayUrl && <img src={displayUrl} alt="preview" className="w-10 h-10 object-cover rounded border" />}
+      <Input 
+        value={inputValue} 
+        onChange={e => onChange?.(e.target.value)} 
+        placeholder={placeholder} 
+        className="flex-1" 
+        readOnly={typeof value === 'object'}
+      />
+      <Upload beforeUpload={beforeUpload} showUploadList={false}>
+        <Button icon={<UploadOutlined />}>Chọn ảnh</Button>
       </Upload>
     </div>
   );
@@ -48,17 +42,19 @@ export default function AdminProductManage() {
   
   // Phân trang
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchKeyword, setSearchKeyword] = useState('');
   const [pageSize, setPageSize] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetchProducts(currentPage, pageSize);
+    fetchProducts(currentPage, pageSize, searchKeyword);
     fetchCategories();
-  }, [currentPage, pageSize]);
+  }, [currentPage, pageSize, searchKeyword]);
 
   const fetchCategories = async () => {
     try {
@@ -84,10 +80,10 @@ export default function AdminProductManage() {
     }
   };
 
-  const fetchProducts = async (page: number, size: number) => {
+  const fetchProducts = async (page: number, size: number, search: string = '') => {
     setLoading(true);
     try {
-      const res = await http.get(`/api/AdminProduct?page=${page}&pageSize=${size}`);
+      const res = await http.get(`/api/AdminProduct?page=${page}&pageSize=${size}&search=${encodeURIComponent(search)}`);
       const { data, totalItems } = res.data;
       setProducts(data || []);
       setTotalItems(totalItems || 0);
@@ -135,6 +131,29 @@ export default function AdminProductManage() {
   const handleModalSubmit = async () => {
     try {
       const values = await form.validateFields();
+      setSaving(true);
+      
+      const uploadImageIfNeeded = async (imgValue: any) => {
+        if (imgValue && typeof imgValue === 'object' && imgValue.file) {
+          const formData = new FormData();
+          formData.append('file', imgValue.file);
+          formData.append('folder', 'images'); // Save products to images folder
+          const res = await http.post('/api/Chat/upload-image', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          return res.data.imageName;
+        }
+        return imgValue;
+      };
+
+      values.imageUrl = await uploadImageIfNeeded(values.imageUrl);
+      
+      if (values.variants) {
+        for (let i = 0; i < values.variants.length; i++) {
+          values.variants[i].imageUrl = await uploadImageIfNeeded(values.variants[i].imageUrl);
+        }
+      }
+
       const payload = {
         productId: values.articleId,
         productName: values.productName,
@@ -155,11 +174,19 @@ export default function AdminProductManage() {
       fetchProducts(currentPage, pageSize);
     } catch (error) {
       message.error('Có lỗi xảy ra, vui lòng thử lại');
+    } finally {
+      setSaving(false);
     }
   };
 
   const expandedRowRender = (record: any) => {
     const variantColumns = [
+      {
+        title: 'Hình ảnh',
+        dataIndex: 'imageUrl',
+        key: 'imageUrl',
+        render: (img: string) => img ? <img src={getImageUrl(img)} alt="variant" className="w-10 h-10 object-cover rounded border" /> : <div className="w-10 h-10 bg-gray-100 rounded border flex items-center justify-center text-xs text-gray-400">Trống</div>
+      },
       { title: 'SKU', dataIndex: 'sku', key: 'sku' },
       { title: 'Màu sắc', dataIndex: 'color', key: 'color' },
       { title: 'Kích cỡ', dataIndex: 'size', key: 'size' },
@@ -194,7 +221,11 @@ export default function AdminProductManage() {
       dataIndex: 'imageUrl',
       key: 'imageUrl',
       width: 100,
-      render: (url: string) => url ? <img src={getImageUrl(url)} alt="product" className="w-12 h-12 object-cover rounded" /> : 'N/A'
+      render: (url: string) => url ?  <img   
+          src={getImageUrl(url) ?? ''} 
+          alt="icon" 
+          className="w-12 h-12 object-cover rounded" 
+        /> : 'N/A'
     },
     {
       title: 'Tên sản phẩm',
@@ -236,9 +267,20 @@ export default function AdminProductManage() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <Title level={3} className="!mb-0">Quản lý sản phẩm</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenModal()}>
-          Thêm sản phẩm mới
-        </Button>
+        <div className="flex gap-4">
+          <Input.Search 
+            placeholder="Tìm kiếm mã hoặc tên sản phẩm..." 
+            allowClear 
+            onSearch={(value) => {
+              setSearchKeyword(value);
+              setCurrentPage(1);
+            }} 
+            style={{ width: 300 }} 
+          />
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenModal()}>
+            Thêm sản phẩm mới
+          </Button>
+        </div>
       </div>
 
       <Table 
@@ -263,6 +305,7 @@ export default function AdminProductManage() {
         okText="Lưu lại"
         cancelText="Hủy"
         width={1000}
+        confirmLoading={saving}
         style={{ top: 20 }}
       >
         <Form form={form} layout="vertical">
