@@ -125,43 +125,39 @@ const AdminWalletManage: React.FC = () => {
       <Tabs defaultActiveKey="1" items={[
         {
           key: '1',
-          label: 'Duyệt thanh toán',
-          children: <AdminPaymentManage />
-        },
-        {
-          key: '2',
           label: 'Báo cáo Dòng tiền',
           children: (
             <div className="pt-4">
-              <Title level={4} className='mb-4'>Dòng tiền Online (Mô phỏng VNPay)</Title>
-              <Card className="mb-8 shadow-sm border-gray-200">
-                <Statistic
-                  title={
-                    <span className="text-lg font-medium text-gray-600">
-                      Số dư tài khoản: {wallet?.accountName}
-                    </span>
-                  }
-                  value={wallet?.balance || 0}
-                  precision={0}
-                  valueStyle={{ color: '#ee4d2d', fontSize: '36px', fontWeight: 'bold' }}
-                  prefix={<DollarOutlined />}
-                  suffix="₫"
-                />
+              {/* <Title level={4} className='mb-4'>Tổng quan Dòng tiền</Title> */}
+              <Card className="!mb-8 shadow-sm border-gray-200">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="">
+                    <div className="text-lg font-semibold text-gray-800 mb-3">Dòng tiền Online</div>
+                    <Statistic
+                      title={
+                        <span className="text-base font-medium text-gray-600">
+                          Số dư: {wallet?.accountName}
+                        </span>
+                      }
+                      value={wallet?.balance || 0}
+                      precision={0}
+                      valueStyle={{ color: '#ee4d2d', fontSize: '32px', fontWeight: 'bold' }}
+                      suffix="₫"
+                    />
+                  </div>
+                  
+                  <div className="">
+                    <div className="text-lg font-semibold text-gray-800 mb-3">Dòng tiền Tiền mặt (COD)</div>
+                    <Statistic
+                      title={<span className="text-base font-medium text-gray-600">Tiền COD đã thu</span>}
+                      value={codSummary?.totalCodReceived || 0}
+                      precision={0}
+                      valueStyle={{ color: '#52c41a', fontSize: '32px', fontWeight: 'bold' }}
+                      suffix="₫"
+                    />
+                  </div>
+                </div>
               </Card>
-
-              <Title level={4} className='mb-4'>Dòng tiền Tiền mặt (Thanh toán khi nhận hàng - COD)</Title>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <Card className="shadow-sm border-gray-200">
-                  <Statistic
-                    title={<span className="text-lg font-medium text-gray-600">Tiền COD đã thu (Đơn Hoàn thành)</span>}
-                    value={codSummary?.totalCodReceived || 0}
-                    precision={0}
-                    valueStyle={{ color: '#52c41a', fontSize: '24px', fontWeight: 'bold' }}
-                    prefix={<DollarOutlined />}
-                    suffix="₫"
-                  />
-                </Card>
-              </div>
 
               <Title level={4} className='mb-4 mt-8'>Lịch sử Giao dịch Online (Sao kê VNPay)</Title>
               <Table
@@ -182,7 +178,12 @@ const AdminWalletManage: React.FC = () => {
               />
             </div>
           )
-        }
+        },
+        {
+          key: '2',
+          label: 'Duyệt thanh toán',
+          children: <AdminPaymentManage />
+        },
       ]} />
     </div>
   );

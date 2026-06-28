@@ -57,7 +57,7 @@ const AdminVoucherManage: React.FC = () => {
         code: record.code,
         discountValue: record.discountValue,
         minOrderValue: record.minOrderValue,
-        quantity: record.quantity || 0,
+        quantity: record.totalQuantity !== undefined ? record.totalQuantity : (record.quantity || 0),
         isActived: record.isActived,
         dateRange: [
           record.startDate ? moment(record.startDate) : moment(),

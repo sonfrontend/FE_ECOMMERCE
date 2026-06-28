@@ -34,6 +34,8 @@ const CustomNextArrow = (props: any) => {
 const HeroBanner: React.FC = () => {
   const [promotions, setPromotions] = useState<any[]>([]);
   const navigate = useNavigate();
+  console.log("BAnner");
+  
 
   // Các banner mô tả shop (mặc định)
   const defaultBanners = [
@@ -56,7 +58,7 @@ const HeroBanner: React.FC = () => {
              id: p.id,
              title: p.title,
              description: p.description,
-             imageUrl:getImageUrl(p.imageUrl ) ?? '',
+             imageUrl:getImageUrl(p.imageUrl) ?? '',
              discountPercentage: p.discountPercentage
           }));
           setPromotions(fetchedPromotions);

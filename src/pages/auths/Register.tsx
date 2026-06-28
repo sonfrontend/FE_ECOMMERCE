@@ -1,10 +1,13 @@
 import { Button, Form, Input } from 'antd';
 import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 
 const Register = () => {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
   const onFinish = async (values) => {
+    setIsLoading(true);
     try {
       const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/api/Auth/register`, {
         method: 'POST',
@@ -23,6 +26,8 @@ const Register = () => {
       }
     } catch (error) {
       console.error('Error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
   const onFinishFailed = (errorInfo) => {
@@ -146,6 +151,7 @@ const Register = () => {
             block 
             type='primary' 
             htmlType='submit' 
+            loading={isLoading}
             className='bg-[#ee4d2d] hover:!bg-[#d73f22] border-none h-11 text-sm font-medium rounded-md shadow-md shadow-orange-500/20'
           >
             Tạo tài khoản

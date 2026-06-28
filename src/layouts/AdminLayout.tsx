@@ -59,13 +59,19 @@ export default function AdminLayout() {
     fetchNotifications();
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/hubs/notification`, {
+      .withUrl(`${import.meta.env.VITE_API_ENDPOINT || 'http://localhost:5000'}/notificationHub`, {
         accessTokenFactory: () => localStorage.getItem('accessToken') || ''
       })
       .withAutomaticReconnect()
       .build();
 
-    connection.start().catch(err => console.error('SignalR Connection Error: ', err));
+    connection.start().then(() => {
+        const userInfoStr = localStorage.getItem('userInfo');
+        const userInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
+        if (userInfo && userInfo.id) {
+          connection.invoke('JoinUserGroup', userInfo.id);
+        }
+    }).catch(err => console.error('SignalR Connection Error: ', err));
 
     connection.on('ReceiveNotification', (notification) => {
       if (notification.type === 'System') {

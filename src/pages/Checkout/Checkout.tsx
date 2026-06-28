@@ -100,7 +100,7 @@ const Checkout: React.FC = () => {
 
   const fetchActivePromotion = async () => {
     try {
-      const res = await http.get('/api/Promotion/active');
+      const res = await http.get('/api/Promotion/available-for-user');
       if (res.data && res.data.length > 0) {
         setActivePromotion(res.data[0]);
       }

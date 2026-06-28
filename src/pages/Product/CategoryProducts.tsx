@@ -282,6 +282,16 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
           sorted.sort((a,b) => (b.soldQuantity || b.SoldQuantity || 0) - (a.soldQuantity || a.SoldQuantity || 0));
         }
 
+        // Filter by price range
+        if (minPriceParam) {
+          const min = Number(minPriceParam);
+          sorted = sorted.filter((p: any) => (p.currentPrice || p.price || 0) >= min);
+        }
+        if (maxPriceParam) {
+          const max = Number(maxPriceParam);
+          sorted = sorted.filter((p: any) => (p.currentPrice || p.price || 0) <= max);
+        }
+
         if (currentFetchId === fetchIdRef.current) {
           setProducts(sorted);
           setTotalItems(sorted.length);
@@ -319,6 +329,16 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
               );
             }
             
+            // Lọc theo price range
+            if (minPriceParam) {
+              const min = Number(minPriceParam);
+              fetchedData = fetchedData.filter((p: any) => (p.currentPrice || p.price || 0) >= min);
+            }
+            if (maxPriceParam) {
+              const max = Number(maxPriceParam);
+              fetchedData = fetchedData.filter((p: any) => (p.currentPrice || p.price || 0) <= max);
+            }
+            
             if (currentFetchId === fetchIdRef.current) {
               if (isNew) {
                 setProducts(fetchedData);
@@ -342,6 +362,15 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
               p.productName?.toLowerCase().includes(lowerKw) || 
               p.description?.toLowerCase().includes(lowerKw)
             );
+          }
+          
+          if (minPriceParam) {
+            const min = Number(minPriceParam);
+            fetchedData = fetchedData.filter((p: any) => (p.currentPrice || p.price || 0) >= min);
+          }
+          if (maxPriceParam) {
+            const max = Number(maxPriceParam);
+            fetchedData = fetchedData.filter((p: any) => (p.currentPrice || p.price || 0) <= max);
           }
           
           if (currentPrice === 'ins') {

@@ -138,7 +138,7 @@ const AppHeader: React.FC = () => {
 
     // Khởi tạo SignalR connection
     const connection = new HubConnectionBuilder()
-      .withUrl('http://localhost:5000/notificationHub', {
+      .withUrl(`${import.meta.env.VITE_API_ENDPOINT || 'http://localhost:5000'}/notificationHub`, {
         accessTokenFactory: () => localStorage.getItem('accessToken') || ''
       })
       .configureLogging(LogLevel.Information)

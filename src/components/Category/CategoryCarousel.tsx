@@ -44,7 +44,7 @@ const CategoryCarousel: React.FC = () => {
   return (
     <div className="bg-white mt-5">
       <div className="border-b border-gray-100 py-4 px-5 uppercase text-gray-500 font-semibold tracking-wider text-sm">
-        DANH MỤC
+        CATEGORIES
       </div>
       <div className="w-full p-4">
         <style>{`
