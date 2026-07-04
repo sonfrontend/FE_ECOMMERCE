@@ -19,7 +19,7 @@ const Register = () => {
       const data = await response.json();
 
       if (response.ok) {
-        alert('Đăng ký thành công!');
+        alert('Registration successful!');
         navigate('/login');
       } else {
         alert(data.message);
@@ -37,8 +37,8 @@ const Register = () => {
   return (
     <div className='w-full'>
       <div className='mb-3 text-center'>
-        <h2 className='font-bold text-2xl text-gray-800 mb-1'>Đăng Ký</h2>
-        <p className='text-gray-500 text-sm'>Tạo tài khoản mới để trải nghiệm mua sắm</p>
+        <h2 className='font-bold text-2xl text-gray-800 mb-1'>Register</h2>
+        <p className='text-gray-500 text-sm'>Create a new account to experience shopping</p>
       </div>
 
       <Form
@@ -52,13 +52,13 @@ const Register = () => {
         className='w-full'
       >
         <Form.Item
-          label={<span className='font-medium text-gray-700 text-sm'>Tên đăng nhập</span>}
+          label={<span className='font-medium text-gray-700 text-sm'>Username</span>}
           name='userName'
           hasFeedback
-          rules={[{ required: true, type: 'string', message: 'Vui lòng nhập tên đăng nhập!' }]}
+          rules={[{ required: true, type: 'string', message: 'Please enter your username!' }]}
           className='mb-4'
         >
-          <Input placeholder='Tên đăng nhập của bạn' className='rounded-md text-sm' />
+          <Input placeholder='Your username' className='rounded-md text-sm' />
         </Form.Item>
 
         <Form.Item
@@ -66,84 +66,84 @@ const Register = () => {
           name='email'
           hasFeedback
           rules={[
-            { required: true, message: 'Vui lòng nhập email!' },
+            { required: true, message: 'Please enter your email!' },
             {
               type: 'email',
-              message: 'Email không đúng định dạng (VD: abc@gmail.com)'
+              message: 'Invalid email format (e.g. abc@gmail.com)'
             }
           ]}
           className='mb-4'
         >
-          <Input placeholder='Email của bạn' className='rounded-md text-sm' />
+          <Input placeholder='Your email' className='rounded-md text-sm' />
         </Form.Item>
 
         <Form.Item
-          label={<span className='font-medium text-gray-700 text-sm'>Số điện thoại</span>}
+          label={<span className='font-medium text-gray-700 text-sm'>Phone Number</span>}
           name='phoneNumber'
           hasFeedback
           rules={[
-            { required: true, message: 'Vui lòng nhập số điện thoại!' },
+            { required: true, message: 'Please enter your phone number!' },
             {
               pattern: /^(84|0[3|5|7|8|9])+([0-9]{8})\b$/,
-              message: 'Số điện thoại không hợp lệ (VD: 0912345678)'
+              message: 'Invalid phone number (e.g. 0912345678)'
             }
           ]}
           className='mb-4'
         >
-          <Input placeholder='Số điện thoại của bạn' className='rounded-md text-sm' />
+          <Input placeholder='Your phone number' className='rounded-md text-sm' />
         </Form.Item>
 
         <Form.Item
-          label={<span className='font-medium text-gray-700 text-sm'>Mật khẩu</span>}
+          label={<span className='font-medium text-gray-700 text-sm'>Password</span>}
           name='password'
           hasFeedback
           rules={[
-            { required: true, message: 'Vui lòng nhập mật khẩu!' },
+            { required: true, message: 'Please enter your password!' },
             {
               pattern: /^(?=.*[A-Z]).+$/,
-              message: 'Mật khẩu phải có ít nhất 1 chữ hoa'
+              message: 'Password must contain at least 1 uppercase letter'
             },
             {
               pattern: /^(?=.*[a-z]).+$/,
-              message: 'Mật khẩu phải có ít nhất 1 chữ thường'
+              message: 'Password must contain at least 1 lowercase letter'
             },
             {
               pattern: /^(?=.*\d).+$/,
-              message: 'Mật khẩu phải có ít nhất 1 số'
+              message: 'Password must contain at least 1 number'
             }
           ]}
           className='mb-4'
         >
-          <Input.Password placeholder='Nhập mật khẩu' className='rounded-md text-sm' />
+          <Input.Password placeholder='Enter your password' className='rounded-md text-sm' />
         </Form.Item>
 
         <Form.Item
           name='confirm_password'
-          label={<span className='font-medium text-gray-700 text-sm'>Nhập lại mật khẩu</span>}
+          label={<span className='font-medium text-gray-700 text-sm'>Confirm Password</span>}
           hasFeedback
           dependencies={['password']}
           rules={[
             {
               required: true,
-              message: 'Vui lòng nhập lại mật khẩu!'
+              message: 'Please confirm your password!'
             },
             ({ getFieldValue }) => ({
               validator(_, value) {
                 if (!value || getFieldValue('password') === value) {
                   return Promise.resolve();
                 }
-                return Promise.reject(new Error('Mật khẩu nhập lại không khớp!'));
+                return Promise.reject(new Error('Passwords do not match!'));
               }
             })
           ]}
           className='mb-4'
         >
-          <Input.Password placeholder='Xác nhận mật khẩu' className='rounded-md text-sm' />
+          <Input.Password placeholder='Confirm your password' className='rounded-md text-sm' />
         </Form.Item>
 
         <div className='flex justify-center mb-6 text-sm'>
-          <span className='text-gray-500 mr-1'>Đã có tài khoản?</span>
-          <Link to='/login' className='text-[#ee4d2d] hover:text-[#d73f22] font-medium'>Đăng nhập ngay</Link>
+          <span className='text-gray-500 mr-1'>Already have an account?</span>
+          <Link to='/login' className='text-[#ee4d2d] hover:text-[#d73f22] font-medium'>Login now</Link>
         </div>
 
         <Form.Item className='mb-0'>
@@ -154,7 +154,7 @@ const Register = () => {
             loading={isLoading}
             className='bg-[#ee4d2d] hover:!bg-[#d73f22] border-none h-11 text-sm font-medium rounded-md shadow-md shadow-orange-500/20'
           >
-            Tạo tài khoản
+            Create Account
           </Button>
         </Form.Item>
       </Form>

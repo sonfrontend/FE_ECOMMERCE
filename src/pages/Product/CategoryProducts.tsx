@@ -7,7 +7,9 @@ import http from '@/apis/http';
 import { getFavorites, toggleFavorite } from '@/utils/favorite';
 import { getImageUrl } from '@/utils/imageUrl';
 import { handleQuickBuy } from '@/utils/quickBuy';
+import CountdownTimer from '@/components/Product/CountdownTimer';
 import { getAIHistory } from '@/utils/aiHistory';
+import ProductCard from '@/components/Product/ProductCard';
 
 const { Text } = Typography;
 
@@ -268,7 +270,7 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
         // Filter by favorites
         if (currentType === 'favor') {
           const favIds = getFavorites();
-          sorted = sorted.filter(p => favIds.includes(p.productId || (p as any).articleId || p.productCode));
+          sorted = sorted.filter(p => favIds.includes(p.productId || (p as any).productId || p.productCode));
         }
 
         // Sort by price
@@ -313,13 +315,22 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
             else if (currentPrice === 'des') backendSort = 'desc';
 
             const res = await http.post('/api/Product/by-ids', {
-              articleIds: favIds,
+              productIds: favIds,
               sortPrice: backendSort
             });
             
             let fetchedData = res.data.data || [];
             const activeKw = mode === 'search' ? (keyword || queryParam) : keyword;
             
+            // Lọc theo category nếu ở trong trang danh mục
+            if (categoryIdToFetch) {
+              const catIdStr = String(categoryIdToFetch);
+              fetchedData = fetchedData.filter((p: any) => 
+                String(p.categoryId) === catIdStr || 
+                String(p.parentCategoryId) === catIdStr
+              );
+            }
+
             // Lọc theo keyword nếu có
             if (activeKw) {
               const lowerKw = activeKw.toLowerCase();
@@ -603,69 +614,23 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
     const originalPriceToDisplay = product.originalPrice || 0;
     
     return (
-      <Link
-        to={`/product/${product.productId}`}
-        className='group flex flex-col cursor-pointer border border-transparent hover:border-gray-300 hover:-translate-y-1 hover:shadow-md transition-all duration-300 bg-white relative rounded-md overflow-hidden'
-      >
-        <div className='relative w-full aspect-[3/4] overflow-hidden bg-[#f5f5f5]'>
-          <img
-            alt={product.productName}
-            src={product.imageUrl?.startsWith('http') ? product.imageUrl : getImageUrl(product.imageUrl)}
-            className='absolute inset-0 w-full h-full object-cover'
-            onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/300x400?text=No+Image' }}
-          />
-          <div 
-            className='absolute top-2 right-2 bg-white/80 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer shadow-sm hover:bg-white transition-all z-10'
-            onClick={(e) => handleToggleFav(e, product.productId || (product as any).articleId)}
-          >
-            {favorites.includes(product.productId || (product as any).articleId) ? (
-              <HeartFilled className='text-blue-500 text-lg' />
-            ) : (
-              <HeartOutlined className='text-gray-500 text-lg hover:text-blue-500' />
-            )}
-          </div>
-        </div>
-
-        <div className='flex flex-col text-left p-2 flex-1'>
-          <Text
-            className='text-gray-800 font-normal text-[13px] leading-tight line-clamp-2 mb-1.5 min-h-[36px]'
-            title={product.productName}
-          >
-            {product.productName}
-          </Text>
-          <div className='flex flex-col mt-auto pt-2'>
-            <div className='h-[18px] flex items-center justify-between w-full'>
-              {originalPriceToDisplay > priceToDisplay ? (
-                <div className='flex items-center gap-1.5'>
-                  <span className='text-gray-400 text-[11px] line-through'>
-                    {new Intl.NumberFormat('vi-VN').format(originalPriceToDisplay)}<span className='underline text-[9px]'>đ</span>
-                  </span>
-                  <div className='flex items-center bg-[#ffebb3] text-[#ee4d2d] text-[10px] font-bold px-1 rounded-sm'>
-                    <span className='mr-0.5'>⚡</span>
-                    <span>-{product.discountPercentage || Math.round((1 - priceToDisplay/originalPriceToDisplay)*100)}%</span>
-                  </div>
-                </div>
-              ) : <div></div>}
-              <span className='text-gray-500 text-[10px] ml-2'>Sold {product.soldQuantity || product.SoldQuantity || 0}</span>
-            </div>
-            <div className='flex items-center justify-between'>
-              <span className='text-[#ee4d2d] font-bold text-[15px] leading-none'>
-                {new Intl.NumberFormat('vi-VN').format(priceToDisplay)}<span className='underline text-[10px] ml-0.5'>đ</span>
-              </span>
-              <div 
-                className='bg-[#ee4d2d] text-white text-[10px] px-2 py-0.5 rounded shadow-sm whitespace-nowrap hover:bg-[#d73f22] transition-colors cursor-pointer'
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleQuickBuy((product as any).productId || (product as any).id || (product as any).articleId, navigate);
-                }}
-              >
-                Buy Now
-              </div>
-            </div>
-          </div>
-        </div>
-      </Link>
+      <ProductCard 
+        key={product.productId || (product as any).productId}
+        productId={product.productId || (product as any).productId}
+        name={product.productName}
+        imageUrl={product.imageUrl}
+        currentPrice={priceToDisplay}
+        originalPrice={originalPriceToDisplay}
+        discountPercentage={product.discountPercentage}
+        soldQuantity={product.soldQuantity || product.SoldQuantity || 0}
+        rating={(product as any).rating || 5.0}
+        reviewsCount={(product as any).reviewsCount || 0}
+        likesCount={(product as any).likesCount || 0}
+        isFavorite={favorites.includes(product.productId || (product as any).productId)}
+        onFavoriteClick={handleToggleFav}
+        showFavoriteIcon={true}
+        discountEndDate={(product as any).discountEndDate}
+      />
     );
   };
 
@@ -805,23 +770,23 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
                         <InputNumber 
                           placeholder="Min ₫" 
                           value={localMinPrice} 
-                          onChange={setLocalMinPrice} 
+                          onChange={(val) => setLocalMinPrice(Number(val) || 0)} 
                           style={{ width: 110 }} 
                           min={0} 
                           onPressEnter={applyPriceRange} 
                           formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                          parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                          parser={value => Number(value!.replace(/\$\s?|(,*)/g, '')) as any}
                         />
                         <span className="text-gray-400">-</span>
                         <InputNumber 
                           placeholder="Max ₫" 
                           value={localMaxPrice} 
-                          onChange={setLocalMaxPrice} 
+                          onChange={(val) => setLocalMaxPrice(Number(val) || 0)} 
                           style={{ width: 110 }} 
                           min={0} 
                           onPressEnter={applyPriceRange} 
                           formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                          parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                          parser={value => Number(value!.replace(/\$\s?|(,*)/g, '')) as any}
                         />
                       </div>
                       <div className="flex justify-end gap-2">
@@ -849,7 +814,7 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
                   </Button>
                 </Popover>
                  <div className="w-full flex items-center">
-                <Input
+                {/* <Input
                   value={localSearchKeyword}
                   onChange={(e) => setLocalSearchKeyword(e.target.value)}
                   onPressEnter={() => { 
@@ -877,7 +842,7 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
                       <Button type="text" shape="circle" size="small" icon={<CameraOutlined className='text-gray-500 hover:text-[#ee4d2d]' />} onClick={() => setIsCameraModalOpen(true)} />
                     </Space>
                   }
-                />
+                /> */}
              </div>
              </div>
              
@@ -928,7 +893,7 @@ const CategoryProducts: React.FC<CategoryProductsProps> = ({ mode = 'category' }
               {products.length === 0 ? (
                 <div className='text-center text-gray-500 py-10'>No products found</div>
               ) : (
-                <div className='grid grid-cols-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4'>
+                <div className='grid grid-cols-2 laptop:grid-cols-4  gap-4'>
                   {products.map(renderProductCard)}
                 </div>
               )}

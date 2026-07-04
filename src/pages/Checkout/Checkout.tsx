@@ -12,7 +12,7 @@ interface CartItem {
   id: number;
   quantity: number;
   product: {
-    articleId: string;
+    productId: string;
     productName: string;
     price: number;
     imageUrl: string;

@@ -37,6 +37,7 @@ export default function AdminLayout() {
     if (path.includes('/admin/orders')) return 'orders';
     if (path.includes('/admin/vouchers')) return 'vouchers';
     if (path.includes('/admin/products')) return 'products';
+    if (path.includes('/admin/categories')) return 'categories';
     if (path.includes('/admin/wallets')) return 'wallets';
     if (path.includes('/admin/shipping-fees')) return 'shipping-fees';
     if (path.includes('/admin/chat')) return 'chat';

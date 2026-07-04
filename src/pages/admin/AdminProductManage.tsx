@@ -111,9 +111,9 @@ export default function AdminProductManage() {
 
   const handleOpenModal = (record?: any) => {
     if (record) {
-      setEditingId(record.articleId);
+      setEditingId(record.productId);
       form.setFieldsValue({
-        articleId: record.articleId,
+        productId: record.productId,
         productName: record.productName,
         categoryId: record.categoryId,
         description: record.description,
@@ -155,7 +155,7 @@ export default function AdminProductManage() {
       }
 
       const payload = {
-        productId: values.articleId,
+        productId: values.productId,
         productName: values.productName,
         categoryId: values.categoryId,
         description: values.description,
@@ -212,8 +212,8 @@ export default function AdminProductManage() {
   const columns = [
     {
       title: 'Mã SP',
-      dataIndex: 'articleId',
-      key: 'articleId',
+      dataIndex: 'productId',
+      key: 'productId',
       width: 100
     },
     {
@@ -252,7 +252,7 @@ export default function AdminProductManage() {
           <Button type="primary" icon={<EditOutlined />} onClick={() => handleOpenModal(record)} size="small" />
           <Popconfirm
             title="Bạn có chắc chắn muốn xóa sản phẩm này?"
-            onConfirm={() => handleDelete(record.articleId)}
+            onConfirm={() => handleDelete(record.productId)}
             okText="Có"
             cancelText="Không"
           >
@@ -286,7 +286,7 @@ export default function AdminProductManage() {
       <Table 
         columns={columns} 
         dataSource={products} 
-        rowKey="articleId" 
+        rowKey="productId" 
         loading={loading}
         expandable={{ expandedRowRender }}
         pagination={{ 
@@ -311,7 +311,7 @@ export default function AdminProductManage() {
         <Form form={form} layout="vertical">
           <Card size="small" title="1. Thông tin chung (Sản phẩm cha)" className="mb-4">
             <div className="grid grid-cols-2 gap-4">
-              <Form.Item name="articleId" label="Mã Sản Phẩm (ID)" rules={[{ required: !editingId, message: 'Vui lòng nhập ID' }]}>
+              <Form.Item name="productId" label="Mã Sản Phẩm (ID)" rules={[{ required: !editingId, message: 'Vui lòng nhập ID' }]}>
                 <Input disabled={!!editingId} placeholder="VD: SP001" />
               </Form.Item>
               <Form.Item name="productName" label="Tên Sản Phẩm" rules={[{ required: true, message: 'Vui lòng nhập tên SP' }]}>

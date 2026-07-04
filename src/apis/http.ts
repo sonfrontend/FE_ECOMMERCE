@@ -114,7 +114,6 @@ class Http {
   private clearAuthAndRedirect() {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user'); // Xóa cả thông tin user nếu có
     window.location.href = '/login';
   }
 }

@@ -10,39 +10,39 @@ export const getFavorites = (): string[] => {
   return [];
 };
 
-export const addFavorite = (articleId: string) => {
+export const addFavorite = (productId: string) => {
   let history = getFavorites();
-  if (!history.includes(articleId)) {
-    history.push(articleId);
+  if (!history.includes(productId)) {
+    history.push(productId);
     localStorage.setItem('favorite_ids', JSON.stringify(history));
   }
 };
 
-export const removeFavorite = (articleId: string) => {
+export const removeFavorite = (productId: string) => {
   let history = getFavorites();
-  history = history.filter(id => id !== articleId);
+  history = history.filter(id => id !== productId);
   localStorage.setItem('favorite_ids', JSON.stringify(history));
 };
 
-export const toggleFavorite = (articleId: string): boolean => {
+export const toggleFavorite = (productId: string): boolean => {
   let history = getFavorites();
   let isFavorited = false;
-  if (history.includes(articleId)) {
-    removeFavorite(articleId);
+  if (history.includes(productId)) {
+    removeFavorite(productId);
     isFavorited = false;
   } else {
-    addFavorite(articleId);
+    addFavorite(productId);
     isFavorited = true;
   }
 
   // Gọi API nền để lưu vào DB (Nếu đã đăng nhập)
-  http.post('/api/Favorite', { articleId }).catch(() => {
+  http.post(`/api/Favorite/toggle/${productId}`).catch(() => {
     // Silently ignore if not logged in
   });
 
   return isFavorited;
 };
 
-export const isFavorite = (articleId: string): boolean => {
-  return getFavorites().includes(articleId);
+export const isFavorite = (productId: string): boolean => {
+  return getFavorites().includes(productId);
 };

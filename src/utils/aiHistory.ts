@@ -8,11 +8,11 @@ export const getAIHistory = (): string[] => {
   return [];
 };
 
-export const addAIHistory = (articleId: string) => {
+export const addAIHistory = (productId: string) => {
   let history = getAIHistory();
   // Remove if exists to move it to the end (most recent)
-  history = history.filter(id => id !== articleId);
-  history.push(articleId);
+  history = history.filter(id => id !== productId);
+  history.push(productId);
   // Keep only the last 10 items
   if (history.length > 10) {
     history = history.slice(history.length - 10);

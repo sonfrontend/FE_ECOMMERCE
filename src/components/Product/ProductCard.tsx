@@ -4,6 +4,7 @@ import { HeartFilled, HeartOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { getImageUrl } from '@/utils/imageUrl';
 import { handleQuickBuy } from '@/utils/quickBuy';
+import CountdownTimer from '@/components/Product/CountdownTimer';
 
 const { Text } = Typography;
 
@@ -21,6 +22,7 @@ export interface ProductCardProps {
   isFavorite?: boolean;
   onFavoriteClick?: (e: React.MouseEvent, productId: string) => void;
   showFavoriteIcon?: boolean;
+  discountEndDate?: string;
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({
@@ -36,7 +38,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
   likesCount,
   isFavorite = false,
   onFavoriteClick,
-  showFavoriteIcon = false
+  showFavoriteIcon = false,
+  discountEndDate
 }) => {
   const navigate = useNavigate();
   const _originalPrice = originalPrice ?? currentPrice;
@@ -50,6 +53,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
       className='group flex flex-col cursor-pointer border border-transparent hover:border-gray-300 hover:-translate-y-1 hover:shadow-md transition-all duration-300 bg-white relative rounded-lg overflow-hidden h-full'
     >
       <div className='relative w-full aspect-[4/5] bg-[#f5f5f5] overflow-hidden'>
+        {discountEndDate && _discountPercentage > 0 && (
+          <div className='absolute top-2 left-2 z-20'>
+            <CountdownTimer endDateStr={discountEndDate} />
+          </div>
+        )}
         <img
           alt={name}
           src={imageUrl?.startsWith('http') ? imageUrl : getImageUrl(imageUrl)}
@@ -83,7 +91,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
         </Text>
         
         {/* Đánh giá, sao, lượt thích */}
-        <div className='flex items-center text-[11px] md:text-xs text-gray-500 mb-3'>
+        <div className='flex items-center justify-end text-[11px] md:text-xs text-gray-500 mb-3'>
           <div className='flex items-center text-[#ffce3d] mr-1'>
             <span className='text-sm leading-none'>★</span>
             <span className='text-gray-600 ml-1 font-medium'>{rating}</span>

@@ -23,7 +23,7 @@ interface CartItem {
   id: number;
   quantity: number;
   product: {
-    articleId: string;
+    productId: string;
     productName: string;
     price: number;
     imageUrl: string;
@@ -66,7 +66,11 @@ const Cart: React.FC<CartProps> = ({ isEmbedded = false }) => {
       await http.put(`/api/Cart/${id}`, quantity, { headers: { 'Content-Type': 'application/json' } });
       window.dispatchEvent(new Event('cart-updated'));
       setCartItems((prev) => prev.map((item) => (item.id === id ? { ...item, quantity } : item)));
-    } catch { message.error('Lỗi cập nhật số lượng'); }
+    } catch (error: any) { 
+      const errorMsg = typeof error.response?.data === 'string' ? error.response.data : error.response?.data?.message;
+      message.error(errorMsg || error.message || 'Lỗi cập nhật số lượng'); 
+      fetchCartItems(); // Revert UI
+    }
   };
 
   const handleRemoveItem = async (id: number) => {

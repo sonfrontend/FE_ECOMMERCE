@@ -3,12 +3,12 @@ import { message } from 'antd';
 import { notificationService } from '@/services/notification.service';
 import { addAIHistory } from '@/utils/aiHistory';
 
-export const handleQuickBuy = async (articleId: string, navigate: (path: string, options?: any) => void) => {
+export const handleQuickBuy = async (productId: string, navigate: (path: string, options?: any) => void) => {
   try {
     message.loading({ content: 'Đang xử lý...', key: 'quickBuy' });
 
     // 1. Fetch product detail to get variants
-    const productRes = await http.get(`/api/Product/${articleId}`);
+    const productRes = await http.get(`/api/Product/${productId}`);
     const productData = productRes.data;
 
     if (!productData) {
@@ -22,16 +22,16 @@ export const handleQuickBuy = async (articleId: string, navigate: (path: string,
 
     // 2. Add to cart
     await http.post('/api/Cart', {
-      articleId: currentVariant.articleId,
+      productId: currentVariant.productId,
       variantId: currentVariant.variantId,
       quantity: 1
     });
 
     window.dispatchEvent(new Event('cart-updated'));
-    addAIHistory(currentVariant.articleId);
+    addAIHistory(currentVariant.productId);
 
     try {
-      await notificationService.notifyAdminAction('ADD_TO_CART', `1 x ${currentVariant.articleId} (Quick Buy)`);
+      await notificationService.notifyAdminAction('ADD_TO_CART', `1 x ${currentVariant.productId} (Quick Buy)`);
     } catch (e) {
       // ignore
     }
@@ -42,11 +42,11 @@ export const handleQuickBuy = async (articleId: string, navigate: (path: string,
     const items = cartRes.data || [];
     const addedItem = items.slice().reverse().find((item: any) => {
       if (currentVariant.color || currentVariant.size) {
-        return item.product.articleId === currentVariant.articleId &&
+        return item.product.productId === currentVariant.productId &&
                item.product.color === currentVariant.color &&
                item.product.size === currentVariant.size;
       }
-      return item.product.articleId === currentVariant.articleId;
+      return item.product.productId === currentVariant.productId;
     });
 
     if (addedItem) {
@@ -58,6 +58,7 @@ export const handleQuickBuy = async (articleId: string, navigate: (path: string,
     }
 
   } catch (error: any) {
-    message.error({ content: error.message || 'Vui lòng đăng nhập để mua hàng!', key: 'quickBuy' });
+    const errorMsg = typeof error.response?.data === 'string' ? error.response.data : error.response?.data?.message;
+    message.error({ content: errorMsg || error.message || 'Vui lòng đăng nhập để mua hàng!', key: 'quickBuy' });
   }
 };

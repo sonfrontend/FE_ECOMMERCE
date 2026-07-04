@@ -4,6 +4,8 @@ import http from '@/apis/http';
 import { useNavigate } from 'react-router-dom';
 import { getImageUrl } from '@/utils/imageUrl';
 import { handleQuickBuy } from '@/utils/quickBuy';
+import CountdownTimer from '@/components/Product/CountdownTimer';
+import { HeartFilled } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
@@ -73,11 +75,16 @@ const ProductRecommendation: React.FC = () => {
         <div className="flex space-x-4">
           {products?.map((product) => (
             <div 
-              key={product.articleId || product.productId}
-              className="flex-none w-36 md:w-48 cursor-pointer group relative bg-white border border-transparent hover:border-gray-300 hover:shadow-md transition-all rounded-md overflow-hidden"
-              onClick={() => navigate(`/product/${product.articleId || product.productId}`)}
+              key={product.productId || product.productId}
+              className="flex-none w-36 md:w-48 cursor-pointer group relative bg-white border border-transparent hover:border-gray-300 hover:shadow-md transition-all rounded-md overflow-hidden flex flex-col h-full"
+              onClick={() => navigate(`/product/${product.productId || product.productId}`)}
             >
               <div className="relative w-full aspect-square bg-gray-50 overflow-hidden">
+                {(product as any).discountEndDate && product.discountPercentage > 0 && (
+                  <div className='absolute top-2 left-2 z-20'>
+                    <CountdownTimer endDateStr={(product as any).discountEndDate} />
+                  </div>
+                )}
                 <img 
                   src={product.imageUrl?.startsWith('http') ? product.imageUrl : getImageUrl(product.imageUrl)}
                   alt={product.productName}
@@ -85,12 +92,28 @@ const ProductRecommendation: React.FC = () => {
                 />
               </div>
 
-              <div className="p-2 flex flex-col justify-between h-24">
-                <Text className="text-xs md:text-sm text-gray-700 line-clamp-2 leading-tight group-hover:text-[#ee4d2d] transition-colors">
-                  {product.productName}
-                </Text>
+              <div className="p-2 flex flex-col justify-between flex-1">
+                <div className="h-[36px] md:h-[40px] overflow-hidden">
+                  <Text className="text-xs md:text-sm text-gray-700 line-clamp-2 leading-tight group-hover:text-[#ee4d2d] transition-colors">
+                    {product.productName}
+                  </Text>
+                </div>
                 
-                <div className='flex flex-col mt-auto pt-2'>
+                {/* Đánh giá, sao, lượt thích */}
+                <div className='flex items-center justify-end text-[10px] md:text-[11px] text-gray-500 mt-1 mb-1'>
+                  <div className='flex items-center text-[#ffce3d] mr-1'>
+                    <span className='text-xs leading-none'>★</span>
+                    <span className='text-gray-600 ml-0.5 font-medium'>{product.rating || 5.0}</span>
+                  </div>
+                  <span className='mr-1'>({product.reviewsCount || 0})</span>
+                  <span className='mx-1 text-gray-300'>|</span>
+                  <div className='flex items-center text-gray-500'>
+                    <HeartFilled className='text-gray-400 text-[10px] mr-1' />
+                    <span>{product.likesCount || 0}</span>
+                  </div>
+                </div>
+
+                <div className='flex flex-col mt-auto pt-1'>
                   <div className='h-[18px] flex items-center justify-between w-full'>
                     {product.originalPrice > product.price ? (
                       <div className='flex items-center gap-1.5'>
@@ -114,7 +137,7 @@ const ProductRecommendation: React.FC = () => {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        handleQuickBuy(product.productId || product.articleId || product.id, navigate);
+                        handleQuickBuy(product.productId || product.productId || product.id, navigate);
                       }}
                     >
                       Buy Now

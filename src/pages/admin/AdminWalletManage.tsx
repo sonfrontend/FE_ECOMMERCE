@@ -99,21 +99,21 @@ const AdminWalletManage: React.FC = () => {
       dataIndex: 'description',
       key: 'description',
     },
-    {
-      title: 'Tổng số tiền',
-      dataIndex: 'newBalance',
-      key: 'newBalance',
-      render: (amount: number, record: any) => {
-        if (record.id?.toString().startsWith('order_') || record.id?.toString().startsWith('refund_')) {
-          return <span className="text-gray-400">-</span>; // COD transactions do not have a balance
-        }
-        return (
-          <span className='text-[#ee4d2d] font-bold'>
-            ₫{new Intl.NumberFormat('vi-VN').format(amount)}
-          </span>
-        );
-      }
-    }
+    // {
+    //   title: 'Tổng số tiền',
+    //   dataIndex: 'newBalance',
+    //   key: 'newBalance',
+    //   render: (amount: number, record: any) => {
+    //     if (record.id?.toString().startsWith('order_') || record.id?.toString().startsWith('refund_')) {
+    //       return <span className="text-gray-400">-</span>; // COD transactions do not have a balance
+    //     }
+    //     return (
+    //       <span className='text-[#ee4d2d] font-bold'>
+    //         ₫{new Intl.NumberFormat('vi-VN').format(amount)}
+    //       </span>
+    //     );
+    //   }
+    // }
   ];
 
   return (

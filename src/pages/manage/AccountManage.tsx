@@ -48,8 +48,9 @@ export default function AccountManage() {
         toast.success('Cập nhật thông tin tài khoản thành công!');
         window.dispatchEvent(new Event('storage'));
       }
-    } catch (error) {
-      toast.error('Lỗi: ' + error);
+    } catch (error: any) {
+      const errorMsg = typeof error.response?.data === 'string' ? error.response.data : error.response?.data?.message;
+      toast.error(errorMsg || error.message || 'Có lỗi xảy ra!');
     } finally {
       setIsLoading(false);
     }
@@ -128,6 +129,12 @@ export default function AccountManage() {
               <>
                 <div className='my-6 border-t border-gray-100'></div>
                 <h3 className='text-lg font-semibold text-gray-800 mb-4'>Đổi mật khẩu <span className="text-sm font-normal text-gray-400">(Tuỳ chọn)</span></h3>
+                <Form.Item
+                  label={<span className='text-gray-600 font-medium'>Mật khẩu cũ</span>}
+                  name='oldPassword'
+                >
+                  <Input.Password size='large' className='rounded-lg max-w-md hover:border-blue-400 focus:border-blue-500' placeholder='Nhập mật khẩu cũ nếu muốn đổi mật khẩu mới' />
+                </Form.Item>
                 <Form.Item
                   label={<span className='text-gray-600 font-medium'>Mật khẩu mới</span>}
                   name='password'

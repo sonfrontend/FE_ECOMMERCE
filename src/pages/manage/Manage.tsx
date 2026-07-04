@@ -37,7 +37,7 @@ export default function Manager() {
 
   const menuItems: MenuProps['items'] = [
     { key: '1', icon: <UserOutlined />, label: 'Hồ sơ của tôi' },
-    { key: '4', icon: <EnvironmentOutlined />, label: 'Địa chỉ nhận hàng' },
+    { key: '4', icon: <EnvironmentOutlined />, label: 'Thông tin nhận hàng' },
     { key: '2', icon: <ShoppingCartOutlined />, label: 'Đơn mua' },
     { key: '7', icon: <ShoppingCartOutlined />, label: 'Giỏ hàng' },
     { key: '3', icon: <GiftOutlined />, label: 'Kho Voucher' },

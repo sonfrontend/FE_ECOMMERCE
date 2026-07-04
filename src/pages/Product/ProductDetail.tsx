@@ -5,10 +5,11 @@ import { HeartOutlined, HeartFilled, MessageOutlined, ShoppingCartOutlined, Shar
 import http from '@/apis/http';
 import { addAIHistory } from '@/utils/aiHistory';
 import { getImageUrl } from '@/utils/imageUrl';
+import { isFavorite, toggleFavorite } from '@/utils/favorite';
 import { notificationService } from '@/services/notification.service';
 
 interface ProductVariant {
-  articleId: string;
+  productId: string;
   variantId?: number;
   size: string;
   color: string;
@@ -19,7 +20,7 @@ interface ProductVariant {
 }
 
 interface ProductDetailData {
-  articleId: string;
+  productId: string;
   productCode: string;
   categoryId: number;
   categoryName: string;
@@ -127,15 +128,17 @@ const ProductDetail: React.FC = () => {
           setSelectedColor(availableVar.color);
           setSelectedSize(availableVar.size);
           
-          // Check if favorited by calling API
-          try {
-            const favRes = await http.get<string[]>('/api/Favorite/my-favorites');
-            if (favRes.data.includes(res.data.articleId)) {
-              setIsFav(true);
-            }
-          } catch (e) {
-            // Not logged in or error, ignore
-            setIsFav(false);
+          // Sync with local favorites initially
+          setIsFav(isFavorite(res.data.productId));
+          
+          // Accurately check with backend if logged in
+          const token = localStorage.getItem('accessToken');
+          if (token) {
+            http.get<string[]>('/api/Favorite/my-favorites').then(favRes => {
+              const isFavDb = favRes.data.includes(res.data.productId);
+              setIsFav(isFavDb);
+              localStorage.setItem('favorite_ids', JSON.stringify(favRes.data));
+            }).catch(() => {});
           }
         }
       } catch (error) {
@@ -199,16 +202,16 @@ const ProductDetail: React.FC = () => {
 
   // AI Tracking: Sản phẩm xem lâu (5 giây)
   useEffect(() => {
-    if (!product) return;
+    if (!product || !id) return;
     
     const timer = setTimeout(async () => {
-      addAIHistory(product.articleId);
-      console.log('AI History: Added viewed product', product.articleId);
+      addAIHistory(id);
+      console.log('AI History: Added viewed product', id);
       
       // Call BE to log the interaction (1 = View > 5s, Score = 1)
       try {
         console.log('Sending track-view API...');
-        await http.post(`/api/Product/${product.articleId}/track-view`, {
+        await http.post(`/api/Product/${id}/track-view`, {
           durationInSeconds: 5
         });
         console.log('Track-view API sent successfully');
@@ -218,11 +221,11 @@ const ProductDetail: React.FC = () => {
     }, 5000);
 
     return () => clearTimeout(timer);
-  }, [product]);
+  }, [product, id]);
 
   const allVariants = product ? [
     {
-      articleId: product.articleId,
+      productId: product.productId,
       size: product.size,
       color: product.color,
       stockQuantity: product.stockQuantity,
@@ -247,20 +250,20 @@ const ProductDetail: React.FC = () => {
     try {
       // 1. Thêm vào giỏ hàng
       await http.post('/api/Cart', {
-        articleId: currentVariant.articleId,
+        productId: currentVariant.productId,
         variantId: currentVariant.variantId,
         quantity: quantity
       });
       
       window.dispatchEvent(new Event('cart-updated'));
-      addAIHistory(currentVariant.articleId);
+      addAIHistory(currentVariant.productId);
 
       // 2. Lấy danh sách giỏ hàng để tìm ID của item vừa được thêm
       const cartRes = await http.get('/api/Cart');
       
       // Tìm item vừa thêm dựa trên id và phân loại
       const addedItem = cartRes.data.find((item: any) => 
-        item.product.articleId === currentVariant.articleId &&
+        item.product.productId === currentVariant.productId &&
         item.product.color === currentVariant.color &&
         item.product.size === currentVariant.size
       );
@@ -305,7 +308,7 @@ const ProductDetail: React.FC = () => {
   const displayStock = currentVariant ? currentVariant.stockQuantity : 0;
 
   const origins = ['VIETNAME', 'CHINA', 'SOUTH KOREA', 'JAPAN', 'USA', 'EUROPE'];
-  const stableIndex = product.articleId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 6;
+  const stableIndex = product.productId?.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 6;
   const productOrigin = product.origin || origins[stableIndex];
 
   const handleColorSelect = (color: string) => {
@@ -324,7 +327,7 @@ const ProductDetail: React.FC = () => {
 
     try {
       await http.post('/api/Cart', {
-        articleId: currentVariant.articleId,
+        productId: currentVariant.productId,
         variantId: currentVariant.variantId,
         quantity: quantity
       });
@@ -333,25 +336,30 @@ const ProductDetail: React.FC = () => {
       window.dispatchEvent(new Event('cart-updated'));
       
       // AI Tracking: Lưu vào lịch sử khi thêm giỏ hàng
-      addAIHistory(currentVariant.articleId);
-      console.log('AI History: Added to cart', currentVariant.articleId);
+      addAIHistory(currentVariant.productId);
+      console.log('AI History: Added to cart', currentVariant.productId);
       
     } catch (error: any) {
-      message.error(error.message || 'Please log in to add to cart!');
+      const errorMsg = typeof error.response?.data === 'string' ? error.response.data : error.response?.data?.message;
+      message.error(errorMsg || error.message || 'Lỗi thêm vào giỏ hàng');
     }
   };
 
   const handleToggleFav = async () => {
     if (product) {
-      try {
-       
-        const res = await http.post(`/api/Favorite/toggle/${product.articleId}`);
-        setIsFav(res.data.isFavorited);
-        setProduct(prev => prev ? { ...prev, favoriteCount: res.data.favoriteCount } : null);
-        message.success(res.data.message);
-      } catch (error: any) {
-        message.error(error.message || 'Please log in to perform this action');
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        message.error('Please log in to perform this action');
+        return;
       }
+      
+      const newFavState = toggleFavorite(product.productId);
+      setIsFav(newFavState);
+      setProduct(prev => prev ? { 
+        ...prev, 
+        favoriteCount: Math.max(0, (prev.favoriteCount || 0) + (newFavState ? 1 : -1)) 
+      } : null);
+      message.success(newFavState ? 'Added to favorites' : 'Removed from favorites');
     }
   };
 
@@ -644,7 +652,11 @@ const ProductDetail: React.FC = () => {
                     <input
                       type='text'
                       value={quantity}
-                      onChange={(e) => setQuantity(Number(e.target.value) || 1)}
+                      onChange={(e) => {
+                        let val = Number(e.target.value) || 1;
+                        if (val > displayStock) val = displayStock;
+                        setQuantity(val);
+                      }}
                       className='w-14 h-8 text-center border-none text-[14px] quantity-input m-0 p-0 text-gray-800'
                     />
                     <button
@@ -684,12 +696,12 @@ const ProductDetail: React.FC = () => {
                       label: 'Live Support (Admin)',
                       icon: <UserOutlined />,
                       onClick: () => {
-                        const url = window.location.origin + `/product/${product.articleId}`;
+                        const url = window.location.origin + `/product/${product.productId}`;
                         window.dispatchEvent(new CustomEvent('share-to-live-chat', { 
                           detail: { 
                             productUrl: url,
                             product: {
-                              id: product.articleId,
+                              id: product.productId,
                               name: product.productName,
                               price: displayPrice,
                               originalPrice: displayOriginalPrice,
@@ -704,12 +716,12 @@ const ProductDetail: React.FC = () => {
                       label: 'Chat with AI Chatbot',
                       icon: <RobotOutlined />,
                       onClick: () => {
-                        const url = window.location.origin + `/product/${product.articleId}`;
+                        const url = window.location.origin + `/product/${product.productId}`;
                         window.dispatchEvent(new CustomEvent('share-to-chat', { 
                           detail: { 
                             productUrl: url,
                             product: {
-                              id: product.articleId,
+                              id: product.productId,
                               name: product.productName,
                               price: displayPrice,
                               originalPrice: displayOriginalPrice,
@@ -757,7 +769,7 @@ const ProductDetail: React.FC = () => {
             ) : (
               <div className='grid grid-cols-6 md:grid-cols-4 lg:grid-cols-5 gap-4'>
                 {fbtProducts.map((p) => (
-                  <Link to={`/product/${p.articleId}`} key={p.articleId} className='block group'>
+                  <Link to={`/product/${p.productId}`} key={p.productId} className='block group'>
                     <div className='bg-white border border-gray-100 hover:border-[#ee4d2d] hover:-translate-y-1 hover:shadow-md transition-all duration-300 rounded-sm overflow-hidden relative'>
                       <div className='aspect-[3/4] overflow-hidden bg-gray-50'>
                         <img src={getImageUrl(p.imageUrl)} alt={p.productName} className='w-full h-full object-cover group-hover:scale-105 transition-transform duration-300' />

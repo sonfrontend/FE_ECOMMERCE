@@ -13,7 +13,7 @@ import ProductCard from './ProductCard';
 const { Text } = Typography;
 
 interface Product {
-  articleId: string;
+  productId: string;
   productCode: string;
   productName: string;
   price: number;
@@ -123,7 +123,7 @@ const ProductGrid: React.FC = () => {
         } else if (activeTab === 'favorite') {
           const favIds = getFavorites();
           const res = await http.post('/api/Product/by-ids', {
-            articleIds: favIds,
+            productIds: favIds,
             sortPrice: sortOrder
           });
           const { data } = res.data;
@@ -185,7 +185,7 @@ const ProductGrid: React.FC = () => {
     }
   };
 
-  const handleToggleFav = (e: React.MouseEvent, articleId: string) => {
+  const handleToggleFav = (e: React.MouseEvent, productId: string) => {
     e.preventDefault(); // Ngăn Link redirect
     e.stopPropagation();
     
@@ -196,7 +196,7 @@ const ProductGrid: React.FC = () => {
       return;
     }
 
-    toggleFavorite(articleId);
+    toggleFavorite(productId);
     setFavorites(getFavorites());
   };
 
@@ -209,21 +209,22 @@ const ProductGrid: React.FC = () => {
   // Thẻ sản phẩm
   const renderProductCard = (product: Product, index: number, isLast: boolean) => {
     return (
-      <div key={product.articleId + '-' + index} ref={isLast ? lastProductElementRef : null}>
+      <div key={product.productId + '-' + index} ref={isLast ? lastProductElementRef : null}>
         <ProductCard
-          productId={product.articleId || (product as any).productId || product.productCode}
+          productId={product.productId || (product as any).productId || product.productCode}
           name={product.productName}
           imageUrl={product.imageUrl}
           currentPrice={(product as any).currentPrice || product.price || 0}
           originalPrice={(product as any).originalPrice}
           discountPercentage={(product as any).discountPercentage}
+          discountEndDate={(product as any).discountEndDate}
           soldQuantity={(product as any).soldQuantity}
           rating={(product as any).rating}
           reviewsCount={(product as any).reviewsCount}
           likesCount={(product as any).likesCount}
-          isFavorite={favorites.includes(product.articleId || (product as any).productId)}
+          isFavorite={favorites.includes(product.productId || (product as any).productId)}
           showFavoriteIcon={true}
-          onFavoriteClick={(e) => handleToggleFav(e, product.articleId || (product as any).productId)}
+          onFavoriteClick={(e) => handleToggleFav(e, product.productId || (product as any).productId)}
         />
       </div>
     );

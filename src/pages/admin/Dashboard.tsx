@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Row, Col, Card, Statistic, Typography, Spin, message, Table, Tag, Button } from 'antd';
+import { Row, Col, Card, Statistic, Typography, Spin, message, Table, Tag, Button, DatePicker } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { 
   DollarOutlined, 
@@ -28,7 +28,7 @@ import {
 } from 'chart.js';
 import { Line, Pie, Bar } from 'react-chartjs-2';
 import http from '@/apis/http';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { getImageUrl } from '@/utils/imageUrl';
 
 ChartJS.register(
@@ -53,6 +53,10 @@ const formatCurrency = (value: number) => {
 export default function Dashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState<[any, any]>([
+    dayjs().startOf('month'),
+    dayjs().endOf('month')
+  ]);
   const [summary, setSummary] = useState<any>({
     totalUsers: 0,
     totalProducts: 0,
@@ -77,20 +81,24 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [dateRange]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
+      const start = dateRange[0].format('YYYY-MM-DDTHH:mm:ss');
+      const end = dateRange[1].format('YYYY-MM-DDTHH:mm:ss');
+      const query = `?startDate=${start}&endDate=${end}`;
+
       const [summaryRes, revenueRes, orderRes, productsRes, ordersListRes, disputesRes, lowStockRes, lostProductsRes] = await Promise.allSettled([
-        http.get('/api/AdminStatistic/dashboard-summary'),
-        http.get('/api/AdminStatistic/revenue'),
-        http.get('/api/AdminStatistic/order-status'),
+        http.get(`/api/AdminStatistic/dashboard-summary${query}`),
+        http.get(`/api/AdminStatistic/revenue${query}`),
+        http.get(`/api/AdminStatistic/order-status${query}`),
         http.get('/api/Product?sortBy=best_selling&pageSize=100'),
         http.get('/api/Order/admin'),
         http.get('/api/Dispute/admin/complaints'),
         http.get('/api/AdminStatistic/low-stock'),
-        http.get('/api/AdminStatistic/lost-products')
+        http.get(`/api/AdminStatistic/lost-products${query}`)
       ]);
 
       if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value.data);
@@ -176,6 +184,7 @@ export default function Dashboard() {
   const exportToExcel = () => {
     // 1. Tổng quan
     const summaryData = [
+      { 'Chỉ số': 'Thời gian thống kê', 'Giá trị': `Từ ${dateRange[0].format('DD/MM/YYYY')} đến ${dateRange[1].format('DD/MM/YYYY')}` },
       { 'Chỉ số': 'Tổng người dùng', 'Giá trị': summary.totalUsers },
       { 'Chỉ số': 'Tổng sản phẩm', 'Giá trị': summary.totalProducts },
       { 'Chỉ số': 'Tổng đơn hàng', 'Giá trị': summary.totalOrders },
@@ -212,7 +221,7 @@ export default function Dashboard() {
     // 5. Sản phẩm thất lạc
     const lostProductsData = lostProducts.map(p => ({
       'Mã ĐH': p.orderId,
-      'Ngày đặt': moment(p.orderDate).format('DD/MM/YYYY HH:mm'),
+      'Ngày đặt': dayjs(p.orderDate).format('DD/MM/YYYY HH:mm'),
       'Tên sản phẩm': p.productName,
       'Số lượng': p.quantity,
       'Đơn giá': p.price,
@@ -222,7 +231,7 @@ export default function Dashboard() {
     // 6. Đơn hàng gần đây
     const recentOrdersData = recentOrders.map(o => ({
       'Mã ĐH': o.id || o.Id,
-      'Ngày đặt': moment(o.orderDate || o.OrderDate).format('DD/MM/YYYY HH:mm'),
+      'Ngày đặt': dayjs(o.orderDate || o.OrderDate).format('DD/MM/YYYY HH:mm'),
       'Khách hàng': (o.user || o.User)?.fullName || (o.user || o.User)?.username || 'Khách',
       'Tổng tiền': o.totalAmount || o.TotalAmount,
       'Trạng thái': o.status || o.Status,
@@ -269,7 +278,9 @@ export default function Dashboard() {
     XLSX.utils.book_append_sheet(wb, styleWorksheet(XLSX.utils.json_to_sheet(lostProductsData)), "Sản phẩm thất lạc");
     XLSX.utils.book_append_sheet(wb, styleWorksheet(XLSX.utils.json_to_sheet(recentOrdersData)), "Đơn hàng gần đây");
 
-    const fileName = `Bao_Cao_Thong_Ke_${moment().format('DD_MM_YYYY')}.xlsx`;
+    const startDateStr = dateRange[0].format('DD_MM_YYYY');
+    const endDateStr = dateRange[1].format('DD_MM_YYYY');
+    const fileName = `Bao_Cao_Thong_Ke_Tu_${startDateStr}_Den_${endDateStr}.xlsx`;
     XLSX.writeFile(wb, fileName);
   };
 
@@ -311,7 +322,7 @@ export default function Dashboard() {
   const orderColumns = [
     { title: 'Mã ĐH', key: 'id', render: (_: any, r: any) => <span className="font-semibold text-blue-600">#{r.id || r.Id}</span> },
     { title: 'Khách hàng', key: 'recipientName', render: (_: any, r: any) => <span>{r.recipientName || r.RecipientName}</span> },
-    { title: 'Ngày đặt', key: 'orderDate', render: (_: any, r: any) => <span>{moment(r.orderDate || r.OrderDate).format('DD/MM/YYYY HH:mm')}</span> },
+    { title: 'Ngày đặt', key: 'orderDate', render: (_: any, r: any) => <span>{dayjs(r.orderDate || r.OrderDate).format('DD/MM/YYYY HH:mm')}</span> },
     { title: 'Tổng tiền', key: 'totalAmount', render: (_: any, r: any) => <span className="font-bold">{formatCurrency(r.totalAmount || r.TotalAmount || 0)}</span> },
     { 
       title: 'Trạng thái', 
@@ -332,9 +343,18 @@ export default function Dashboard() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center mb-6">
         <Title level={2} className="m-0 text-gray-800 tracking-tight">Thống kê & Tổng quan</Title>
-        <Button type="primary" icon={<DownloadOutlined />} onClick={exportToExcel} className="h-10 px-6 font-medium shadow-md hover:shadow-lg transition-all rounded-lg">
-          Xuất báo cáo
-        </Button>
+        <div className="flex gap-4">
+            <DatePicker.RangePicker 
+              value={dateRange} 
+              onChange={(dates) => { if (dates) setDateRange(dates as [any, any]); }} 
+              format="DD/MM/YYYY"
+              allowClear={false}
+              className="h-10 rounded-lg shadow-sm"
+            />
+            <Button type="primary" icon={<DownloadOutlined />} onClick={exportToExcel} className="h-10 px-6 font-medium shadow-md hover:shadow-lg transition-all rounded-lg">
+              Xuất báo cáo
+            </Button>
+        </div>
       </div>
       
       {/* STAT CARDS */}
@@ -449,7 +469,7 @@ export default function Dashboard() {
                           dataSource={record.orderItems || record.OrderItems || []}
                           pagination={false}
                           size="small"
-                          rowKey={(item: any) => item.articleId || item.ArticleId || Math.random()}
+                          rowKey={(item: any) => item.productId || item.ProductId || Math.random()}
                           columns={[
                             {
                               title: 'Sản phẩm',

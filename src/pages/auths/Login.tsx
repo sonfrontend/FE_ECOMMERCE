@@ -34,7 +34,7 @@ const Login = () => {
         const messageFromBackend = error.response.data.message;
         toast.error(messageFromBackend);
       } else {
-        toast.error('Đã có lỗi xảy ra. Vui lòng thử lại!');
+        toast.error('An error occurred. Please try again!');
       }
     } finally {
       setIsLoading(false);
@@ -76,19 +76,19 @@ const Login = () => {
           window.location.href = '/';
         }
       } else {
-        alert('Lỗi từ C#: ' + data.message);
+        alert('Error from C#: ' + data.message);
       }
     } catch (error) {
-      console.log('Lỗi đăng nhập Google Firebase:', error);
-      toast.error('Đăng nhập Google thất bại');
+      console.log('Google Firebase login error:', error);
+      toast.error('Google login failed');
     }
   };
 
   return (
     <div className='w-full'>
       <div className='mb-3 text-center'>
-        <h2 className='font-bold text-2xl text-gray-800 mb-1'>Đăng Nhập</h2>
-        <p className='text-gray-500 text-sm'>Vui lòng đăng nhập để tiếp tục mua sắm</p>
+        <h2 className='font-bold text-2xl text-gray-800 mb-1'>Login</h2>
+        <p className='text-gray-500 text-sm'>Please log in to continue shopping</p>
       </div>
 
       <Form
@@ -101,26 +101,26 @@ const Login = () => {
         className='w-full'
       >
         <Form.Item 
-          label={<span className='font-medium text-gray-700 text-sm'>Tên đăng nhập</span>} 
+          label={<span className='font-medium text-gray-700 text-sm'>Username</span>} 
           name='userName' 
-          rules={[{ required: true, message: 'Vui lòng nhập tên đăng nhập!' }]}
+          rules={[{ required: true, message: 'Please enter your username!' }]}
           className='mb-4'
         >
-          <Input placeholder='Nhập tên đăng nhập của bạn' className='rounded-md text-sm' />
+          <Input placeholder='Enter your username' className='rounded-md text-sm' />
         </Form.Item>
 
         <Form.Item 
-          label={<span className='font-medium text-gray-700 text-sm'>Mật khẩu</span>} 
+          label={<span className='font-medium text-gray-700 text-sm'>Password</span>} 
           name='password'
-          rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
+          rules={[{ required: true, message: 'Please enter your password!' }]}
           className='mb-4'
         >
-          <Input.Password placeholder='Nhập mật khẩu' className='rounded-md text-sm' />
+          <Input.Password placeholder='Enter your password' className='rounded-md text-sm' />
         </Form.Item>
 
         <Flex justify='space-between' align='center' className='mb-6 text-sm'>
-          <a href='#' className='text-[#ee4d2d] hover:text-[#d73f22] font-medium'>Quên mật khẩu?</a>
-          <Link to='/register' className='text-gray-500 hover:text-gray-800 font-medium'>Đăng ký tài khoản</Link>
+          <a href='#' className='text-[#ee4d2d] hover:text-[#d73f22] font-medium'>Forgot password?</a>
+          <Link to='/register' className='text-gray-500 hover:text-gray-800 font-medium'>Register account</Link>
         </Flex>
 
         <Form.Item className='mb-4'>
@@ -131,11 +131,11 @@ const Login = () => {
             loading={isLoading}
             className='bg-[#ee4d2d] hover:!bg-[#d73f22] border-none h-11 text-sm font-medium rounded-md shadow-md shadow-orange-500/20'
           >
-            Đăng nhập
+            Log in
           </Button>
         </Form.Item>
 
-        <Divider plain className='text-gray-400 border-gray-200 text-xs my-3'>HOẶC</Divider>
+        <Divider plain className='text-gray-400 border-gray-200 text-xs my-3'>OR</Divider>
 
         <Form.Item className='mb-0'>
           <Button 
@@ -144,7 +144,7 @@ const Login = () => {
             onClick={handleGoogleLogin}
             className="flex items-center justify-center font-medium h-11 text-sm text-gray-700 border-gray-300 hover:!border-gray-400 hover:!text-gray-800 rounded-md"
           >
-            Tiếp tục với Google
+            Continue with Google
           </Button>
         </Form.Item>
       </Form>

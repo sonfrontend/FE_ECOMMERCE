@@ -62,7 +62,7 @@ const OrderHistory: React.FC = () => {
     try {
       setIsSubmittingReview(true);
       await http.post('/api/Review', {
-        productId: reviewItem.orderItem.articleId,
+        productId: reviewItem.orderItem.productId,
         orderItemId: reviewItem.orderItem.id,
         rating: reviewRating,
         comment: reviewComment
@@ -281,7 +281,7 @@ const OrderHistory: React.FC = () => {
                             />
                           }
                           title={
-                            <Link to={`/product/${item.articleId}`} className='text-base font-medium hover:text-[#ee4d2d] transition-colors'>
+                            <Link to={`/product/${item.productId}`} className='text-base font-medium hover:text-[#ee4d2d] transition-colors'>
                               {item.productName}
                             </Link>
                           }

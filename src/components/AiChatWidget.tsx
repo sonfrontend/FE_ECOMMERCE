@@ -13,7 +13,7 @@ const AiChatWidget: React.FC = () => {
   const [messages, setMessages] = useState<any[]>([
     {
       id: 'welcome',
-      message: 'Xin chào! Tôi là Trợ lý ảo AI của cửa hàng. Tôi có thể giúp bạn kiểm tra đơn hàng, tư vấn size hoặc thông tin sản phẩm.',
+      message: 'Hello! I am the store\'s AI Virtual Assistant. I can help you check orders, recommend sizes, or provide product information.',
       senderId: 'ai',
       createdAt: new Date().toISOString(),
       status: 'sent'
@@ -99,7 +99,7 @@ const AiChatWidget: React.FC = () => {
           uploadedImageName = uploadRes.data.imageName;
         }
       } catch (error) {
-        console.error('Lỗi upload ảnh', error);
+        console.error('Image upload error', error);
         setIsUploading(false);
         return; 
       }
@@ -175,7 +175,7 @@ const AiChatWidget: React.FC = () => {
         setUnreadCount(prev => prev + 1);
       }
     } catch (error) {
-      console.error("Lỗi khi gửi tin nhắn", error);
+      console.error("Error sending message", error);
       setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'error' } : m));
     } finally {
       setIsTyping(false);
@@ -229,8 +229,8 @@ const AiChatWidget: React.FC = () => {
             <div className="flex items-center gap-4">
               <Avatar icon={<RobotOutlined />} size={36} className="bg-white text-[#ee4d2d]" />
               <div>
-                <div className="font-bold text-[15px] leading-tight">Trợ lý ảo AI</div>
-                <div className="text-[12px] opacity-90 font-medium">Sẵn sàng hỗ trợ 24/7</div>
+                <div className="font-bold text-[15px] leading-tight">AI Virtual Assistant</div>
+                <div className="text-[12px] opacity-90 font-medium">Ready to support 24/7</div>
               </div>
             </div>
             <Button type="text" icon={<CloseOutlined className="text-white hover:text-gray-200" />} onClick={toggleChat} className="mr-[-8px]" />
@@ -256,7 +256,7 @@ const AiChatWidget: React.FC = () => {
                         </div>
                       )}
                       <div className={`text-[10px] mt-1 text-right flex items-center justify-end gap-1 ${isMe ? 'text-blue-400' : 'text-gray-400'}`}>
-                        {msg.status === 'sending' ? 'Đang gửi...' : msg.status === 'error' ? 'Lỗi' : new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        {msg.status === 'sending' ? 'Sending...' : msg.status === 'error' ? 'Error' : new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                       </div>
                     </div>
                   </div>
@@ -281,7 +281,7 @@ const AiChatWidget: React.FC = () => {
             {sharedProduct && (
               <div className="px-3 py-2 mb-3 bg-gray-50 rounded-lg flex flex-col border border-gray-100 relative">
                 <div className="text-[11px] text-gray-500 mb-1.5 font-medium flex justify-between">
-                  <span>Hỏi AI về sản phẩm này</span>
+                  <span>Ask AI about this product</span>
                   <CloseOutlined className="cursor-pointer hover:text-gray-800" onClick={() => setSharedProduct(null)} />
                 </div>
                 <div className="flex items-center gap-2 bg-white p-1.5 rounded-md border border-gray-100">
@@ -301,7 +301,7 @@ const AiChatWidget: React.FC = () => {
             {previewImageUrl && (
               <div className="px-3 py-2 mb-3 bg-gray-50 rounded-lg flex flex-col border border-gray-100 relative">
                 <div className="text-[11px] text-gray-500 mb-1.5 font-medium flex justify-between">
-                  <span>Ảnh đính kèm</span>
+                  <span>Attached Image</span>
                   <CloseOutlined 
                     className="cursor-pointer hover:text-gray-800" 
                     onClick={() => {
@@ -324,12 +324,12 @@ const AiChatWidget: React.FC = () => {
                 ref={fileInputRef}
                 onChange={handleImageUpload}
               />
-              <Button 
+              {/* <Button 
                 type="text"
                 icon={<PictureOutlined className="text-xl" />} 
                 onClick={() => fileInputRef.current?.click()} 
                 className="text-gray-400 hover:text-gray-500 mb-0.5 ml-1 px-2"
-              />
+              /> */}
               <Input.TextArea
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
@@ -339,7 +339,7 @@ const AiChatWidget: React.FC = () => {
                     handleSend();
                   }
                 }}
-                placeholder="Hỏi AI về đơn hàng, size..."
+                placeholder="Ask AI about orders, sizes..."
                 autoSize={{ minRows: 1, maxRows: 3 }}
                 style={{ resize: 'none' }}
                 className="bg-transparent border-none focus:ring-0 shadow-none text-[13px] py-2 px-1"

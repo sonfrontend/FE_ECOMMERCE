@@ -56,6 +56,7 @@ export default function FavoriteManage() {
                     currentPrice={product.currentPrice || product.price || 0}
                     originalPrice={product.originalPrice}
                     discountPercentage={product.discountPercentage}
+                    discountEndDate={product.discountEndDate}
                     soldQuantity={product.soldQuantity}
                     rating={product.rating}
                     reviewsCount={product.reviewsCount}
